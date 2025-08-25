@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "You can learn cEDH!",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "astro dev --port 8000",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro"
