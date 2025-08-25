@@ -1,2 +1,2 @@
-# mazes-end
+# Mazes End
 You can learn cEDH!
