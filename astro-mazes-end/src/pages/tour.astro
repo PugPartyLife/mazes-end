@@ -1,0 +1,19 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navigation from '../components/Navigation.jsx';
+import Footer from '../components/Footer.jsx';
+import PlayerSurvey from '../components/PlayerSurvey.jsx';
+---
+
+<Layout title="Get Started - The Maze's End">
+  <div class="min-h-screen bg-gray-900">
+    <Navigation client:load />
+    
+    <!-- Survey Modal Container -->
+    <div class="pt-16 min-h-screen flex items-center justify-center p-4">
+      <PlayerSurvey client:load />
+    </div>
+    
+    <Footer />
+  </div>
+</Layout>

@@ -14,7 +14,7 @@ Example:
         >>> filters = TournamentFilters(
         ...     game="Magic: The Gathering",
         ...     format="EDH",
-        ...     participant_min=100
+        ...     participantMin=100
         ... )
         >>> mtg_tournaments = api.get_tournaments(filters)
 """
@@ -35,19 +35,68 @@ class TournamentFilters:
     """Configuration for tournament API requests.
     
     Attributes:
-        last: Number of recent tournaments to fetch (default: 30)
-        top: Filter by top cut size (8, 16, etc.)
-        participant_min: Minimum number of participants required
-        game: Game name filter (case sensitive, e.g., "Magic: The Gathering")
-        format: Format filter (case sensitive, e.g., "EDH", "Standard")
-        columns: List of data columns to return in response
-    """
+        TID: string | array of strings
+        The ID of the tournament. Can be a single string or an array of strings for multiple tournaments.
+        
+        game: string
+        The name of the game for filtering tournaments. Case sensitive.
 
+        format: string
+        The format of the game for filtering tournaments. Case sensitive.
+
+        start: integer
+        The Unix timestamp (in seconds) indicating the earliest start date for the tournaments to be included in the response.
+        
+        end: integer
+        The Unix timestamp (in seconds) indicating the latest end date for the tournaments to be included in the response.
+        
+        last: integer
+        The number of days back from today to include tournaments.
+        
+        participantMax: integer
+        The maximum number of participants to include.
+        
+        participantMin: integer
+        The minimum number of participants to include.
+
+        rounds: boolean | array of strings
+        An array specifying which round details to include in the response. This is default set to false. If set to true, the default is: ["round", "tables"]
+
+        tables: array of strings
+        An array specifying which table details to include in the response. Default: ["table", "players", "winner", "status"]
+
+        players: array of strings
+        An array specifying which player details to include in the response. Default: ["name", "id"]
+
+        columns: List of data columns to return in response:
+            [
+                "name", // Name of the player
+                "decklist", // String or URL of the player's decklist (also includes deckObj when available)
+                "wins", // Total wins by the player
+                "winsSwiss", // Wins in the Swiss rounds
+                "winsBracket", // Wins in the Bracket rounds
+                "winRate", // Overall win rate
+                "winRateSwiss", // Win rate in the Swiss rounds
+                "winRateBracket", // Win rate in the Bracket rounds
+                "byes", // Byes received in the tournament
+                "draws", // Number of draws
+                "losses", // Total losses by the player
+                "lossesSwiss", // Losses in the Swiss rounds
+                "lossesBracket", // Losses in the Bracket rounds
+                "id" // Unique player identifier on TopDeck.gg
+            ]
+    """
+    TID: Optional[List[str]] = None
+    game: Optional[str] = "Magic: The Gathering"
+    format: Optional[str] = "EDH"
+    start: Optional[int] = None
+    end: Optional[int] = None
     last: Optional[int] = 30
-    top: Optional[int] = None
-    participant_min: Optional[int] = None
-    game: Optional[str] = None
-    format: Optional[str] = None
+    participantMin: Optional[int] = None
+    participantMax: Optional[int] = None
+    rounds: Optional[bool] = False
+    tables: Optional[List[str]] = None
+    players: Optional[List[str]] = None
     columns: Optional[List[str]] = None
 
 
@@ -100,14 +149,12 @@ class TopdeckAPI:
         with self._lock:
             now = datetime.now()
             
-            # Remove requests older than 1 minute
-            cutoff = now - timedelta(minutes=1)
+            
+            cutoff = now - timedelta(minutes=1)  # Remove requests older than 1 minute
             self.request_times = [t for t in self.request_times if t > cutoff]
             
-            # If we're at the limit, wait until we can make another request
-            if len(self.request_times) >= self.rate_limit:
-                # Calculate how long to wait until the oldest request expires
-                oldest_request = min(self.request_times)
+            if len(self.request_times) >= self.rate_limit:  # At the limit. wait for more requests
+                oldest_request = min(self.request_times)  # Calculate how long to wait until the oldest request expires
                 wait_until = oldest_request + timedelta(minutes=1, seconds=1)
                 wait_time = (wait_until - now).total_seconds()
                 
@@ -115,12 +162,10 @@ class TopdeckAPI:
                     print(f"Rate limit reached. Waiting {wait_time:.1f} seconds...")
                     time.sleep(wait_time)
                     
-                    # Clean up expired requests again after waiting
                     now = datetime.now()
                     cutoff = now - timedelta(minutes=1)
                     self.request_times = [t for t in self.request_times if t > cutoff]
-            
-            # Record this request
+            t
             self.request_times.append(now)
 
     def _make_request(self, payload: Dict, max_retries: int = 3) -> List[Dict]:
@@ -146,9 +191,8 @@ class TopdeckAPI:
                 
                 if response.status_code == 429:  # Rate limit exceeded
                     print(f"Rate limited by server on attempt {attempt + 1}")
-                    if attempt < max_retries:
-                        # Exponential backoff: wait 2^attempt * 30 seconds
-                        wait_time = (2 ** attempt) * 30
+                    if attempt < max_retries:              
+                        wait_time = (2 ** attempt) * 30  # Exponential backoff: wait 2^attempt * 30 seconds
                         print(f"Waiting {wait_time} seconds before retry...")
                         time.sleep(wait_time)
                         continue
@@ -203,10 +247,8 @@ class TopdeckAPI:
         if filters is None:
             filters = TournamentFilters()
 
-        # Convert dataclass to dict and remove None values
         payload = {k: v for k, v in asdict(filters).items() if v is not None}
 
-        # Set default columns if not specified
         if "columns" not in payload:
             payload["columns"] = ["name", "wins", "draws", "losses"]
 
@@ -316,7 +358,7 @@ class TopdeckAPI:
             last=last_n,
             game="Magic: The Gathering",
             format=format_name,
-            participant_min=min_players,
+            participantMin=min_players,
             columns=["name", "decklist", "wins", "draws", "winRate"],
         )
     def get_multiple_tournament_details(
@@ -347,8 +389,7 @@ class TopdeckAPI:
         """
         results = {}
         
-        # Process tournaments in batches to avoid overwhelming the API
-        for i in range(0, len(tournament_ids), batch_size):
+        for i in range(0, len(tournament_ids), batch_size):  # batch requests for lower API stress
             batch_ids = tournament_ids[i:i + batch_size]
             
             print(f"Fetching batch {i//batch_size + 1}: {len(batch_ids)} tournaments")
@@ -361,13 +402,11 @@ class TopdeckAPI:
             
             batch_results = self._make_request(payload)
             
-            # Map results back to tournament IDs
             for tournament in batch_results:
                 tid = tournament.get("TID")
                 if tid:
                     results[tid] = tournament
             
-            # Add empty results for tournaments that weren't returned
             for tid in batch_ids:
                 if tid not in results:
                     results[tid] = {}
@@ -396,13 +435,11 @@ class TopdeckAPI:
             now = datetime.now()
             cutoff = now - timedelta(minutes=1)
             
-            # Clean up old requests
             self.request_times = [t for t in self.request_times if t > cutoff]
             
             requests_in_last_minute = len(self.request_times)
             remaining_requests = max(0, self.rate_limit - requests_in_last_minute)
             
-            # Calculate time until reset (when oldest request expires)
             time_until_reset = 0
             if self.request_times:
                 oldest_request = min(self.request_times)
@@ -443,9 +480,7 @@ def print_tournaments(tournaments: List[Dict]) -> None:
         swiss_rounds = tournament.get("swissNum", "Unknown")
         top_cut = tournament.get("topCut", "Unknown")
         date_created = tournament.get("dateCreated", 0)
-
-        # Convert Unix timestamp to readable date
-        if date_created:
+        if date_created:  # Convert Unix timestamp to readable date
             date_str = time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(date_created)
             )
@@ -523,7 +558,6 @@ def main() -> None:
     fetching, filtering, detailed data retrieval, and rate limiting features.
     Replace the TOPDECKGG_API_KEY variable with your actual key to test.
     """
-    # TODO: Replace with your actual API key
     if 'TOPDECKGG_API_KEY' in os.environ:
         api_key = os.environ['TOPDECKGG_API_KEY']
     else:
@@ -533,17 +567,17 @@ def main() -> None:
         print("\nNote: The API has a rate limit of 200 requests per minute.")    
         return
 
-    # Initialize API client with rate limiting
+    
     api = TopdeckAPI(api_key=api_key)
 
     print("=== Topdeck API Tournament Fetcher with Rate Limiting ===")
     print("API Rate Limit: 200 requests per minute\n")
 
     # Test 1: Get recent tournaments
-    print("1. Getting last 10 tournaments...")
-    recent_filters = TournamentFilters(last=10, game="Magic: The Gathering", format="EDH")
-    recent_tournaments = api.get_tournaments(recent_filters)
-    print_tournaments(recent_tournaments)
+    # print("1. Getting last 10 tournaments...")
+    recent_filters = TournamentFilters(last=10, game="Magic: The Gathering", format="EDH", min_players=50)
+    # recent_tournaments = api.get_tournaments(recent_filters)
+    # print_tournaments(recent_tournaments)
 
     # Test 2: Get tournament IDs only
     print("2. Getting tournament IDs only...")
