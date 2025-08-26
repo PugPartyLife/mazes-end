@@ -114,6 +114,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between text-gray-400 text-sm">
             <p>&copy; {currentYear} ThreadParty Development. All rights reserved.</p>
+	    <p class="text-sm">Data provided by:<a class="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a></p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="hover:text-white transition-colors duration-200">
                 Privacy Policy

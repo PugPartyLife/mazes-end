@@ -18,9 +18,11 @@ export default function Banner() {
         <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900">
         {/* Background image across entire banner */}
         <div 
-          className="absolute inset-0 opacity-30 bg-cover bg-center"
+          className="absolute inset-0 opacity-20 bg-cover bg-center"
           style={{
-            backgroundImage: 'url("https://cards.scryfall.io/large/front/4/0/401f7042-24fd-42a0-ae7c-e6b7de1aa446.jpg?1562906764")'
+//            backgroundImage: 'url("https://cards.scryfall.io/large/front/4/0/401f7042-24fd-42a0-ae7c-e6b7de1aa446.jpg?1562906764")',
+            backgroundImage: 'url("/mazesend.jpg")',
+            backgroundPosition: 'center 37%'
           }}
         ></div>
         
