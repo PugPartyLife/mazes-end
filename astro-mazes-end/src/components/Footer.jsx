@@ -45,7 +45,7 @@ export default function Footer() {
             {/* Brand Section */}
             <div className="lg:col-span-2">
               <div className="text-2xl font-bold bg-gradient-to-r from-gray-400 to-gray-600 bg-clip-text text-transparent mb-4">
-                The Maze's End
+                <span className="text-white">The Maze's End</span>
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 Wanting to get into cEDH but not sure where to start?
@@ -103,7 +103,7 @@ export default function Footer() {
                 placeholder="Enter your email"
                 className="flex-1 md:w-64 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-md focus:outline-none focus:border-gray-500 transition-colors duration-200 text-white placeholder-gray-400"
               />
-              <button className="px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 rounded-r-md transition-all duration-200 whitespace-nowrap">
+              <button className="cursor-pointer px-6 py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 rounded-r-md transition-all duration-200 whitespace-nowrap">
                 Subscribe
               </button>
             </div>
@@ -114,7 +114,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between text-gray-400 text-sm">
             <p>&copy; {currentYear} ThreadParty Development. All rights reserved.</p>
-	    <p class="text-sm">Data provided by:<a class="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a></p>
+	    <p class="text-sm">Data provided by:&nbsp;<a class="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a></p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="hover:text-white transition-colors duration-200">
                 Privacy Policy

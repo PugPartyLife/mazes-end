@@ -43,7 +43,7 @@ export default function Banner() {
                 The Maze's End
               <br />
               <span className="relative">
-                  <span className="bg-gradient-to-r from-gray-300 to-gray-600 bg-clip-text text-transparent">
+                  <span className="text-4xl md:text-5xl bg-gradient-to-r from-gray-300 to-gray-600 bg-clip-text text-transparent">
                   {words[currentWord]}
                   </span>
               </span>
@@ -56,15 +56,15 @@ export default function Banner() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
-                <button className="border-2 border-white/30 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
+                <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
                     Learn cEDH
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                 </button>
-                <button className="border-2 border-white/30 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
+                <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
                     Commanders
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                 </button>
-                <button className="border-2 border-white/30 text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
+                <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
                     Cards and Combos
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                 </button>
