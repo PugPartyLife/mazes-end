@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 
+interface Stat {
+  number: string;
+  label: string;
+}
+
 export default function Banner() {
-  const [currentWord, setCurrentWord] = useState(0);
-  const words = ['1. Learn', '2. Study', '3. Practice', '4. Win'];
+  const [currentWord, setCurrentWord] = useState<number>(0);
+  const words: string[] = ['1. Learn', '2. Study', '3. Practice', '4. Win'];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentWord((prev) => (prev + 1) % words.length);
+      setCurrentWord((prev: number) => (prev + 1) % words.length);
     }, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  const stats: Stat[] = [
+    { number: '42', label: 'Commanders' },
+    { number: '42', label: 'Cards' },
+    { number: '42', label: 'Decks' },
+    { number: '42', label: 'Tournaments' },
+  ];
 
   return (
     <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
@@ -75,12 +87,7 @@ export default function Banner() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 max-w-2xl mx-auto">
-            {[
-                { number: '42', label: 'Commanders' },
-                { number: '42', label: 'Cards' },
-                { number: '42', label: 'Decks' },
-                { number: '42', label: 'Tournaments' },
-            ].map((stat, index) => (
+            {stats.map((stat: Stat, index: number) => (
                 <div key={index} className="text-center">
                 <div className="text-2xl md:text-3xl font-bold text-white">{stat.number}</div>
                 <div className="text-gray-200 text-xs md:text-sm">{stat.label}</div>

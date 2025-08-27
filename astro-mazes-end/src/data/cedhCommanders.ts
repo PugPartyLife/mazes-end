@@ -1,5 +1,7 @@
 // cEDH and High Power commanders by color combination
-export const cedhCommanders = {
+import type { CedhCommander, ColorCombination, CommandersByColor } from '../types';
+
+export const cedhCommanders: CommandersByColor<CedhCommander> = {
   'W': [
     { name: 'Heliod, Sun-Crowned', archetype: 'Combo', description: 'Walking Ballista combo with protection package' },
     { name: 'Teshar, Ancestor\'s Apostle', archetype: 'Combo', description: 'Artifact combo with efficient recursion' }

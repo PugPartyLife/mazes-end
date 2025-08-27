@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 
-export default function Navigation() {
-const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+interface NavItem {
+  name: string;
+  href: string;
+  external?: boolean;  // For external links
+  disabled?: boolean;  // For disabled nav items
+}
+
+export default function Navigation(): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [scrolled, setScrolled] = useState<boolean>(false);
 
   useEffect(() => {
-    const handleScroll = () => {
+    const handleScroll = (): void => {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: 'Home', href: '#' },
     { name: 'Commanders', href: '#commanders' },
     { name: 'Cards and Combos', href: '#cards-combos' },
@@ -30,13 +37,20 @@ const [isOpen, setIsOpen] = useState(false);
           {/* Desktop Navigation - removed ml-10 to center properly */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">
-              {navItems.map((item) => (
+              {navItems.map((item: NavItem) => (
                 <a
                   key={item.name}
-                  href={item.href}
-                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 hover:text-gray-300 ${
-                    scrolled ? 'text-gray-100' : 'text-white hover:text-gray-300'
+                  href={item.disabled ? '#' : item.href}
+                  target={item.external ? '_blank' : undefined}
+                  rel={item.external ? 'noopener noreferrer' : undefined}
+                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                    item.disabled 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : scrolled 
+                        ? 'text-gray-100 hover:text-gray-300' 
+                        : 'text-white hover:text-gray-300'
                   }`}
+                  onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 >
                   {item.name}
                 </a>
@@ -60,12 +74,24 @@ const [isOpen, setIsOpen] = useState(false);
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 shadow-lg">
-            {navItems.map((item) => (
+            {navItems.map((item: NavItem) => (
               <a
                 key={item.name}
-                href={item.href}
-                className="block px-3 py-2 text-base font-medium text-gray-100 hover:text-gray-300 hover:bg-gray-700 rounded-md transition-colors duration-200"
-                onClick={() => setIsOpen(false)}
+                href={item.disabled ? '#' : item.href}
+                target={item.external ? '_blank' : undefined}
+                rel={item.external ? 'noopener noreferrer' : undefined}
+                className={`block px-3 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
+                  item.disabled
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-100 hover:text-gray-300 hover:bg-gray-700'
+                }`}
+                onClick={(e) => {
+                  if (item.disabled) {
+                    e.preventDefault();
+                  } else {
+                    setIsOpen(false);
+                  }
+                }}
               >
                 {item.name}
               </a>
@@ -75,4 +101,4 @@ const [isOpen, setIsOpen] = useState(false);
       )}
     </nav>
   );
-};
+}

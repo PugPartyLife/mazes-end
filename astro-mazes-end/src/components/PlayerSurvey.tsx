@@ -3,15 +3,44 @@ import { ArrowRight, ArrowLeft, Home } from 'lucide-react';
 import { magicColors, getColorCombinationName } from '../data/magicColors';
 import { cedhCommanders } from '../data/cedhCommanders';
 import { casualCommanders } from '../data/casualCommanders';
+import type { ColorId } from '../types';
 
-const PlayerSurvey = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [playerType, setPlayerType] = useState(null);
-  const [selectedColors, setSelectedColors] = useState([]);
+interface SurveyOption {
+  value: string;
+  text: string;
+}
+
+interface SurveyStep {
+  id?: string;
+  type: 'intro' | 'question' | 'color_picker' | 'results';
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  question?: string;
+  options?: SurveyOption[];
+}
+
+interface PlayerType {
+  title: string;
+  description: string;
+  color: string;
+}
+
+interface Answers {
+  experience?: string;
+  colors?: ColorId[];
+  power_level?: string;
+  playstyle?: string;
+}
+
+const PlayerSurvey: React.FC = () => {
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [playerType, setPlayerType] = useState<string | null>(null);
+  const [selectedColors, setSelectedColors] = useState<ColorId[]>([]);
 
   // Simplified survey structure
-  const surveySteps = [
+  const surveySteps: SurveyStep[] = [
     {
       type: 'intro',
       title: 'Welcome to Your Magic Journey!',
@@ -63,7 +92,7 @@ const PlayerSurvey = () => {
   ];
 
   // Simplified player types
-  const playerTypes = {
+  const playerTypes: Record<string, PlayerType> = {
     learning_foundation: {
       title: 'The Foundation Builder',
       description: 'You\'re building your Magic fundamentals! Focus on understanding core concepts and clean gameplay.',
@@ -87,7 +116,7 @@ const PlayerSurvey = () => {
   };
 
   // Helper functions
-  const toggleColor = (colorId) => {
+  const toggleColor = (colorId: ColorId): void => {
     setSelectedColors(prev => 
       prev.includes(colorId) 
         ? prev.filter(id => id !== colorId)
@@ -105,7 +134,7 @@ const PlayerSurvey = () => {
     return commanders[colorStr] || [];
   };
 
-  const calculatePlayerType = () => {
+  const calculatePlayerType = (): string => {
     const { experience, power_level, playstyle } = answers;
     
     if (experience === 'beginner') return 'learning_foundation';
@@ -114,11 +143,11 @@ const PlayerSurvey = () => {
     return 'social_player';
   };
 
-  const handleAnswer = (questionId, answer) => {
+  const handleAnswer = (questionId: string, answer: string): void => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }));
   };
 
-  const nextStep = () => {
+  const nextStep = (): void => {
     if (currentStep === 2 && selectedColors.length > 0) {
       setAnswers(prev => ({ ...prev, colors: selectedColors }));
     }
@@ -127,15 +156,15 @@ const PlayerSurvey = () => {
     }
   };
 
-  const prevStep = () => {
+  const prevStep = (): void => {
     if (currentStep > 0) setCurrentStep(currentStep - 1);
   };
 
-  const completeResults = () => {
+  const completeResults = (): void => {
     setPlayerType(calculatePlayerType());
   };
 
-  const resetSurvey = () => {
+  const resetSurvey = (): void => {
     setCurrentStep(0);
     setAnswers({});
     setPlayerType(null);
@@ -184,18 +213,18 @@ const PlayerSurvey = () => {
         )}
 
         {/* Question Step */}
-        {currentStepData.type === 'question' && (
+        {currentStepData.type === 'question' && currentStepData.options && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-6 text-center">
               {currentStepData.question}
             </h2>
             <div className="space-y-3">
-              {currentStepData.options.map((option) => (
+              {currentStepData.options.map((option: SurveyOption) => (
                 <button
                   key={option.value}
-                  onClick={() => handleAnswer(currentStepData.id, option.value)}
+                  onClick={() => handleAnswer(currentStepData.id!, option.value)}
                   className={`w-full p-4 rounded-lg text-left transition-all duration-200 border ${
-                    answers[currentStepData.id] === option.value
+                    answers[currentStepData.id! as keyof Answers] === option.value
                       ? 'bg-gray-600 border-gray-500 text-white'
                       : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
                   }`}
@@ -225,10 +254,10 @@ const PlayerSurvey = () => {
                   {magicColors.map((color) => (
                     <button
                       key={color.id}
-                      onClick={() => toggleColor(color.id)}
+                      onClick={() => toggleColor(color.id as ColorId)}
                       className={`
                         aspect-square rounded-full flex items-center justify-center text-2xl font-bold border-4 transition-all duration-200 transform hover:scale-105
-                        ${selectedColors.includes(color.id) 
+                        ${selectedColors.includes(color.id as ColorId) 
                           ? `${color.bgColor} ${color.borderColor} ${color.textColor} shadow-lg` 
                           : 'bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-600'
                         }
@@ -250,9 +279,9 @@ const PlayerSurvey = () => {
                         return (
                           <span 
                             key={colorId}
-                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${color.bgColor} ${color.textColor}`}
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${color?.bgColor} ${color?.textColor}`}
                           >
-                            {color.symbol}
+                            {color?.symbol}
                           </span>
                         );
                       })}
@@ -322,7 +351,7 @@ const PlayerSurvey = () => {
         )}
 
         {/* Player Type Results */}
-        {playerType && (
+        {playerType && playerTypes[playerType] && (
           <div className="text-center">
             <div className={`inline-block px-6 py-3 rounded-full text-white font-bold mb-6 ${playerTypes[playerType].color}`}>
               {playerTypes[playerType].title}
@@ -338,7 +367,7 @@ const PlayerSurvey = () => {
                   Recommended Commanders for {getColorCombinationName(selectedColors)}
                 </h3>
                 <div className="grid gap-4 max-w-4xl mx-auto">
-                  {getCommanderRecommendations().map((commander, index) => (
+                  {getCommanderRecommendations().map((commander, index: number) => (
                     <div key={index} className="bg-gray-700 rounded-lg p-4 text-left">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-lg font-bold text-white">{commander.name}</h4>
@@ -395,7 +424,7 @@ const PlayerSurvey = () => {
             disabled={
               currentStepData.type === 'color_picker' 
                 ? selectedColors.length === 0
-                : !answers[currentStepData.id]
+                : !answers[currentStepData.id! as keyof Answers]
             }
             className="flex items-center gap-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >

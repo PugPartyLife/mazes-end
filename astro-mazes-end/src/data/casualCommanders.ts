@@ -1,5 +1,7 @@
 // Casual and Focused EDH commanders by color combination
-export const casualCommanders = {
+import type { CasualCommander, ColorCombination, CommandersByColor } from '../types';
+
+export const casualCommanders: CommandersByColor<CasualCommander> = {
   'W': [
     { name: 'Sram, Senior Edificer', archetype: 'Voltron', description: 'Equipment/aura card draw engine' },
     { name: 'Darien, King of Kjeldor', archetype: 'Tokens', description: 'Soldier tribal with lifegain synergy' }

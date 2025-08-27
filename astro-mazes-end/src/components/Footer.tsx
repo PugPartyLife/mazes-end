@@ -1,10 +1,30 @@
 import React from 'react';
 import { Github, Twitter, Linkedin, Mail } from 'lucide-react';
 
+interface FooterLink {
+  name: string;
+  href: string;
+  external?: boolean;
+  disabled?: boolean;
+}
+
+interface FooterSection {
+  title: string;
+  links: FooterLink[];
+}
+
+interface SocialLink {
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  href: string;
+  label: string;
+  external?: boolean;
+  disabled?: boolean;
+}
+
 export default function Footer() {
-    const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
   
-  const footerSections = [
+  const footerSections: FooterSection[] = [
     {
       title: 'Team',
       links: [
@@ -16,9 +36,9 @@ export default function Footer() {
     {
       title: 'Get Competitive',
       links: [
-        { name: 'EDHtop16', href: 'https://edhtop16.com/' },
-        { name: 'PlayNice', href: 'https://playnicemtg.com/' },
-        { name: 'TopDeck.gg', href: 'https://topdeck.gg/' },
+        { name: 'EDHtop16', href: 'https://edhtop16.com/', external: true },
+        { name: 'PlayNice', href: 'https://playnicemtg.com/', external: true },
+        { name: 'TopDeck.gg', href: 'https://topdeck.gg/', external: true },
       ],
     },
     {
@@ -30,7 +50,7 @@ export default function Footer() {
     },
   ];
 
-  const socialLinks = [
+  const socialLinks: SocialLink[] = [
     { icon: Github, href: '#', label: 'GitHub' },
     { icon: Twitter, href: '#', label: 'Twitter' },
     { icon: Linkedin, href: '#', label: 'LinkedIn' },
@@ -57,12 +77,19 @@ export default function Footer() {
               
               {/* Social Links */}
               <div className="flex space-x-4">
-                {socialLinks.map((social, index) => (
+                {socialLinks.map((social: SocialLink, index: number) => (
                   <a
                     key={index}
-                    href={social.href}
+                    href={social.disabled ? '#' : social.href}
+                    target={social.external ? '_blank' : undefined}
+                    rel={social.external ? 'noopener noreferrer' : undefined}
                     aria-label={social.label}
-                    className="w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center hover:bg-gray-600 transition-colors duration-200"
+                    className={`w-10 h-10 bg-gray-800 rounded-full flex items-center justify-center transition-colors duration-200 ${
+                      social.disabled 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-gray-600'
+                    }`}
+                    onClick={social.disabled ? (e) => e.preventDefault() : undefined}
                   >
                     <social.icon className="w-5 h-5" />
                   </a>
@@ -71,15 +98,22 @@ export default function Footer() {
             </div>
 
             {/* Footer Links */}
-            {footerSections.map((section, index) => (
+            {footerSections.map((section: FooterSection, index: number) => (
               <div key={index}>
                 <h3 className="text-lg font-semibold mb-4">{section.title}</h3>
                 <ul className="space-y-2">
-                  {section.links.map((link, linkIndex) => (
+                  {section.links.map((link: FooterLink, linkIndex: number) => (
                     <li key={linkIndex}>
                       <a
-                        href={link.href}
-                        className="text-gray-400 hover:text-white transition-colors duration-200"
+                        href={link.disabled ? '#' : link.href}
+                        target={link.external ? '_blank' : undefined}
+                        rel={link.external ? 'noopener noreferrer' : undefined}
+                        className={`transition-colors duration-200 ${
+                          link.disabled 
+                            ? 'text-gray-500 cursor-not-allowed' 
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                        onClick={link.disabled ? (e) => e.preventDefault() : undefined}
                       >
                         {link.name}
                       </a>
@@ -115,7 +149,7 @@ export default function Footer() {
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between text-gray-400 text-sm">
             <p>&copy; {currentYear} ThreadParty Development. All rights reserved.</p>
-	    <p className="text-sm">Data provided by:&nbsp;<a className="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a></p>
+            <p className="text-sm">Data provided by:&nbsp;<a className="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank" rel="noopener noreferrer">TopDeck.gg</a></p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="hover:text-white transition-colors duration-200">
                 Privacy Policy
@@ -132,4 +166,4 @@ export default function Footer() {
       </div>
     </footer>
   );
-};
+}

@@ -1,5 +1,7 @@
 // Magic color data and combination mappings
-export const magicColors = [
+import type { MagicColor, ColorCombination } from '../types';
+
+export const magicColors: MagicColor[] = [
   { id: 'W', name: 'White', symbol: 'W', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-400', textColor: 'text-gray-800' },
   { id: 'U', name: 'Blue', symbol: 'U', bgColor: 'bg-blue-500', borderColor: 'border-blue-600', textColor: 'text-white' },
   { id: 'B', name: 'Black', symbol: 'B', bgColor: 'bg-gray-900', borderColor: 'border-gray-700', textColor: 'text-white' },
@@ -7,7 +9,7 @@ export const magicColors = [
   { id: 'G', name: 'Green', symbol: 'G', bgColor: 'bg-green-500', borderColor: 'border-green-600', textColor: 'text-white' }
 ];
 
-export const colorCombinations = {
+export const colorCombinations: Record<ColorCombination, string> = {
   // Single colors
   'W': 'Mono-White',
   'U': 'Mono-Blue', 
@@ -50,7 +52,7 @@ export const colorCombinations = {
   'BGRUW': 'WUBRG (All Colors)'
 };
 
-export const getColorCombinationName = (colors) => {
+export const getColorCombinationName = (colors: string[]): string => {
   if (!colors || colors.length === 0) return '';
   const colorStr = colors.sort().join('');
   return colorCombinations[colorStr] || `${colors.length}-Color Combination`;
