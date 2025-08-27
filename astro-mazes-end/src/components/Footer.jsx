@@ -10,6 +10,7 @@ export default function Footer() {
       links: [
         { name: 'PugParty', href: '#' },
         { name: 'ThreadPool', href: '#' },
+        { name: 'Revert Creations', href: '#' },
       ],
     },
     {
