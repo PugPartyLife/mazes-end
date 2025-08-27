@@ -14,7 +14,7 @@ Example:
         >>> filters = TournamentFilters(
         ...     game="Magic: The Gathering",
         ...     format="EDH",
-        ...     participantMin=100
+        ...     participant_min=100
         ... )
         >>> mtg_tournaments = api.get_tournaments(filters)
 """
@@ -35,69 +35,30 @@ class TournamentFilters:
     """Configuration for tournament API requests.
     
     Attributes:
-        TID: string | array of strings
-        The ID of the tournament. Can be a single string or an array of strings for multiple tournaments.
-        
-        game: string
-        The name of the game for filtering tournaments. Case sensitive.
-
-        format: string
-        The format of the game for filtering tournaments. Case sensitive.
-
-        start: integer
-        The Unix timestamp (in seconds) indicating the earliest start date for the tournaments to be included in the response.
-        
-        end: integer
-        The Unix timestamp (in seconds) indicating the latest end date for the tournaments to be included in the response.
-        
-        last: integer
-        The number of days back from today to include tournaments.
-        
-        participantMax: integer
-        The maximum number of participants to include.
-        
-        participantMin: integer
-        The minimum number of participants to include.
-
-        rounds: boolean | array of strings
-        An array specifying which round details to include in the response. This is default set to false. If set to true, the default is: ["round", "tables"]
-
-        tables: array of strings
-        An array specifying which table details to include in the response. Default: ["table", "players", "winner", "status"]
-
-        players: array of strings
-        An array specifying which player details to include in the response. Default: ["name", "id"]
-
-        columns: List of data columns to return in response:
-            [
-                "name", // Name of the player
-                "decklist", // String or URL of the player's decklist (also includes deckObj when available)
-                "wins", // Total wins by the player
-                "winsSwiss", // Wins in the Swiss rounds
-                "winsBracket", // Wins in the Bracket rounds
-                "winRate", // Overall win rate
-                "winRateSwiss", // Win rate in the Swiss rounds
-                "winRateBracket", // Win rate in the Bracket rounds
-                "byes", // Byes received in the tournament
-                "draws", // Number of draws
-                "losses", // Total losses by the player
-                "lossesSwiss", // Losses in the Swiss rounds
-                "lossesBracket", // Losses in the Bracket rounds
-                "id" // Unique player identifier on TopDeck.gg
-            ]
+        last: Number of recent tournaments to fetch (default: 30)
+        start: Unix timestamp for earliest start date
+        end: Unix timestamp for latest end date
+        participantMin: Minimum number of participants required
+        participantMax: Maximum number of participants required
+        game: Game name filter (case sensitive, e.g., "Magic: The Gathering") - REQUIRED
+        format: Format filter (case sensitive, e.g., "EDH", "Standard") - REQUIRED
+        columns: List of data columns to return in response
+        rounds: Include round details (boolean or list)
+        tables: Table details to include
+        players: Player details to include
     """
-    TID: Optional[List[str]] = None
-    game: Optional[str] = "Magic: The Gathering"
-    format: Optional[str] = "EDH"
+
+    game: str  # Required field
+    format: str  # Required field
+    last: Optional[int] = 30
     start: Optional[int] = None
     end: Optional[int] = None
-    last: Optional[int] = 30
     participantMin: Optional[int] = None
     participantMax: Optional[int] = None
-    rounds: Optional[bool] = False
+    columns: Optional[List[str]] = None
+    rounds: Optional[bool] = None
     tables: Optional[List[str]] = None
     players: Optional[List[str]] = None
-    columns: Optional[List[str]] = None
 
 
 class TopdeckAPI:
@@ -149,12 +110,14 @@ class TopdeckAPI:
         with self._lock:
             now = datetime.now()
             
-            
-            cutoff = now - timedelta(minutes=1)  # Remove requests older than 1 minute
+            # Remove requests older than 1 minute
+            cutoff = now - timedelta(minutes=1)
             self.request_times = [t for t in self.request_times if t > cutoff]
             
-            if len(self.request_times) >= self.rate_limit:  # At the limit. wait for more requests
-                oldest_request = min(self.request_times)  # Calculate how long to wait until the oldest request expires
+            # If we're at the limit, wait until we can make another request
+            if len(self.request_times) >= self.rate_limit:
+                # Calculate how long to wait until the oldest request expires
+                oldest_request = min(self.request_times)
                 wait_until = oldest_request + timedelta(minutes=1, seconds=1)
                 wait_time = (wait_until - now).total_seconds()
                 
@@ -162,10 +125,12 @@ class TopdeckAPI:
                     print(f"Rate limit reached. Waiting {wait_time:.1f} seconds...")
                     time.sleep(wait_time)
                     
+                    # Clean up expired requests again after waiting
                     now = datetime.now()
                     cutoff = now - timedelta(minutes=1)
                     self.request_times = [t for t in self.request_times if t > cutoff]
-            t
+            
+            # Record this request
             self.request_times.append(now)
 
     def _make_request(self, payload: Dict, max_retries: int = 3) -> List[Dict]:
@@ -191,8 +156,9 @@ class TopdeckAPI:
                 
                 if response.status_code == 429:  # Rate limit exceeded
                     print(f"Rate limited by server on attempt {attempt + 1}")
-                    if attempt < max_retries:              
-                        wait_time = (2 ** attempt) * 30  # Exponential backoff: wait 2^attempt * 30 seconds
+                    if attempt < max_retries:
+                        # Exponential backoff: wait 2^attempt * 30 seconds
+                        wait_time = (2 ** attempt) * 30
                         print(f"Waiting {wait_time} seconds before retry...")
                         time.sleep(wait_time)
                         continue
@@ -247,8 +213,10 @@ class TopdeckAPI:
         if filters is None:
             filters = TournamentFilters()
 
+        # Convert dataclass to dict and remove None values
         payload = {k: v for k, v in asdict(filters).items() if v is not None}
 
+        # Set default columns if not specified
         if "columns" not in payload:
             payload["columns"] = ["name", "wins", "draws", "losses"]
 
@@ -322,6 +290,8 @@ class TopdeckAPI:
             raise ValueError("Tournament ID cannot be empty")
 
         filters = TournamentFilters(
+            game="Magic: The Gathering",
+            format="EDH",
             columns=["name", "decklist", "wins", "draws", "losses"]
         )
         payload = asdict(filters)
@@ -355,12 +325,14 @@ class TopdeckAPI:
             >>> modern_tournaments = api.get_mtg_tournaments("Modern", min_players=64)
         """
         filters = TournamentFilters(
-            last=last_n,
             game="Magic: The Gathering",
             format=format_name,
+            last=last_n,
             participantMin=min_players,
             columns=["name", "decklist", "wins", "draws", "winRate"],
         )
+        return self.get_tournaments(filters)
+
     def get_multiple_tournament_details(
         self, tournament_ids: List[str], batch_size: int = 50
     ) -> Dict[str, Dict]:
@@ -389,12 +361,15 @@ class TopdeckAPI:
         """
         results = {}
         
-        for i in range(0, len(tournament_ids), batch_size):  # batch requests for lower API stress
+        # Process tournaments in batches to avoid overwhelming the API
+        for i in range(0, len(tournament_ids), batch_size):
             batch_ids = tournament_ids[i:i + batch_size]
             
             print(f"Fetching batch {i//batch_size + 1}: {len(batch_ids)} tournaments")
             
             filters = TournamentFilters(
+                game="Magic: The Gathering",
+                format="EDH",
                 columns=["name", "decklist", "wins", "draws", "losses", "winRate"]
             )
             payload = asdict(filters)
@@ -402,11 +377,13 @@ class TopdeckAPI:
             
             batch_results = self._make_request(payload)
             
+            # Map results back to tournament IDs
             for tournament in batch_results:
                 tid = tournament.get("TID")
                 if tid:
                     results[tid] = tournament
             
+            # Add empty results for tournaments that weren't returned
             for tid in batch_ids:
                 if tid not in results:
                     results[tid] = {}
@@ -435,11 +412,13 @@ class TopdeckAPI:
             now = datetime.now()
             cutoff = now - timedelta(minutes=1)
             
+            # Clean up old requests
             self.request_times = [t for t in self.request_times if t > cutoff]
             
             requests_in_last_minute = len(self.request_times)
             remaining_requests = max(0, self.rate_limit - requests_in_last_minute)
             
+            # Calculate time until reset (when oldest request expires)
             time_until_reset = 0
             if self.request_times:
                 oldest_request = min(self.request_times)
@@ -480,7 +459,9 @@ def print_tournaments(tournaments: List[Dict]) -> None:
         swiss_rounds = tournament.get("swissNum", "Unknown")
         top_cut = tournament.get("topCut", "Unknown")
         date_created = tournament.get("dateCreated", 0)
-        if date_created:  # Convert Unix timestamp to readable date
+
+        # Convert Unix timestamp to readable date
+        if date_created:
             date_str = time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(date_created)
             )
@@ -551,6 +532,45 @@ def print_tournament_details(details: Dict) -> None:
             print()
 
 
+def demonstrate_rate_limiting(api: TopdeckAPI) -> None:
+    """Demonstrate rate limiting features."""
+    print("\n6. Demonstrating rate limiting...")
+    status = api.get_rate_limit_status()
+    print(f"Current rate limit status:")
+    print(f"  Requests in last minute: {status['requests_in_last_minute']}")
+    print(f"  Rate limit: {status['rate_limit']}")
+    print(f"  Remaining requests: {status['remaining_requests']}")
+    print(f"  Time until reset: {status['time_until_reset']:.1f} seconds")
+
+
+def bulk_tournament_analysis(api: TopdeckAPI, format_name: str) -> None:
+    """Demonstrate bulk tournament fetching."""
+    print(f"\n7. Bulk analysis for {format_name} format...")
+    
+    # Get tournament IDs first
+    filters = TournamentFilters(
+        game="Magic: The Gathering", 
+        format=format_name, 
+        participant_min=50,
+        last=50
+    )
+    tournament_ids = api.get_tournament_ids(filters)
+    
+    if tournament_ids:
+        print(f"Found {len(tournament_ids)} tournament IDs for bulk analysis")
+        
+        # Get details for first 5 tournaments
+        sample_ids = tournament_ids[:5]
+        details_map = api.get_multiple_tournament_details(sample_ids)
+        
+        print(f"Successfully fetched details for {len(details_map)} tournaments")
+        for tid, details in details_map.items():
+            if details:
+                name = details.get('tournamentName', 'Unknown')
+                players = len(details.get('standings', []))
+                print(f"  {tid}: {name} ({players} players)")
+
+
 def main() -> None:
     """Main function for testing the API with rate limiting.
     
@@ -558,6 +578,7 @@ def main() -> None:
     fetching, filtering, detailed data retrieval, and rate limiting features.
     Replace the TOPDECKGG_API_KEY variable with your actual key to test.
     """
+    # TODO: Replace with your actual API key
     if 'TOPDECKGG_API_KEY' in os.environ:
         api_key = os.environ['TOPDECKGG_API_KEY']
     else:
@@ -567,50 +588,217 @@ def main() -> None:
         print("\nNote: The API has a rate limit of 200 requests per minute.")    
         return
 
-    
+    # Initialize API client with rate limiting
     api = TopdeckAPI(api_key=api_key)
 
-    print("=== Topdeck API Tournament Fetcher with Rate Limiting ===")
+    print("=== Topdeck API Tournament Fetcher - Last 10 Days, Min 50 Participants ===")
     print("API Rate Limit: 200 requests per minute\n")
 
-    # Test 1: Get recent tournaments
+    # Get recent tournaments with minimum 50 participants
+    # Note: We need to specify game and format as they are required by the API
+    print("Fetching recent tournaments with minimum 50 participants...")
+    print("Using Magic: The Gathering EDH as example (game and format are required)")
+    
+    # Calculate 10 days ago as Unix timestamp
+    import time
+    ten_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
+    
+    filters = TournamentFilters(
+        game="Magic: The Gathering",
+        format="EDH",
+        start=ten_days_ago,  # Tournaments from 10 days ago
+        participantMin=50
+    )
+    tournament_ids = api.get_tournament_ids(filters)
+    
+    print(f"\nFound {len(tournament_ids)} tournament IDs:")
+    for i, tid in enumerate(tournament_ids, 1):
+        print(f"{i:3d}. {tid}")
+    
+    # Now get detailed data for each tournament including all players
+    if tournament_ids:
+        print(f"\nFetching detailed data for all {len(tournament_ids)} tournaments...")
+        
+        # Get detailed tournament data with all player information
+        detailed_filters = TournamentFilters(
+            game="Magic: The Gathering",
+            format="EDH",
+            start=ten_days_ago,
+            participantMin=50,
+            columns=[
+                "name", "decklist", "wins", "draws", "losses", 
+                "winsSwiss", "winsBracket", "lossesSwiss", "lossesBracket",
+                "winRate", "winRateSwiss", "winRateBracket", "byes", "id"
+            ]
+        )
+        
+        detailed_tournaments = api.get_tournaments(detailed_filters)
+        
+        print(f"\nDetailed Tournament Data:")
+        print("=" * 100)
+        
+        for i, tournament in enumerate(detailed_tournaments, 1):
+            tid = tournament.get("TID", "Unknown")
+            name = tournament.get("tournamentName", "Unknown")
+            game = tournament.get("game", "Unknown")
+            format_name = tournament.get("format", "Unknown")
+            swiss_rounds = tournament.get("swissNum", 0)
+            top_cut = tournament.get("topCut", 0)
+            start_date = tournament.get("startDate", 0)
+            
+            # Convert Unix timestamp to readable date
+            if start_date:
+                date_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_date))
+            else:
+                date_str = "Unknown"
+            
+            # Get standings (players)
+            standings = tournament.get("standings", [])
+            player_count = len(standings)
+            
+            print(f"\n{i:2d}. Tournament ID: {tid}")
+            print(f"    Name: {name}")
+            print(f"    Game: {game}")
+            print(f"    Format: {format_name}")
+            print(f"    Date: {date_str}")
+            print(f"    Swiss Rounds: {swiss_rounds}")
+            print(f"    Top Cut: {top_cut}")
+            print(f"    Total Players: {player_count}")
+            
+            # Event location data if available
+            if "eventData" in tournament and tournament["eventData"]:
+                event_data = tournament["eventData"]
+                city = event_data.get("city", "")
+                state = event_data.get("state", "")
+                location = event_data.get("location", "")
+                if city or state or location:
+                    location_str = f"{location}, {city}, {state}".strip(", ")
+                    print(f"    Location: {location_str}")
+            
+            # Display player data
+            if standings:
+                print(f"\n    Players:")
+                print(f"    {'Pos':<4} {'Name':<25} {'Record':<12} {'Win%':<6} {'Byes':<4} {'Has Deck'}")
+                print(f"    {'-'*4} {'-'*25} {'-'*12} {'-'*6} {'-'*4} {'-'*8}")
+                
+                for pos, player in enumerate(standings, 1):
+                    player_name = player.get("name", "Unknown")[:24]  # Truncate long names
+                    wins = player.get("wins", 0)
+                    losses = player.get("losses", 0) 
+                    draws = player.get("draws", 0)
+                    win_rate = player.get("winRate", 0)
+                    byes = player.get("byes", 0)
+                    has_decklist = "Yes" if player.get("decklist") else "No"
+                    player_id = player.get("id", "Unknown")
+                    
+                    # Format win rate as percentage
+                    win_rate_pct = f"{win_rate:.1%}" if isinstance(win_rate, (int, float)) else "N/A"
+                    
+                    record_str = f"{wins}-{losses}-{draws}"
+                    
+                    print(f"    {pos:<4} {player_name:<25} {record_str:<12} {win_rate_pct:<6} {byes:<4} {has_decklist}")
+                
+                # Show some statistics
+                total_games = sum(p.get("wins", 0) + p.get("losses", 0) + p.get("draws", 0) for p in standings)
+                players_with_decks = sum(1 for p in standings if p.get("decklist"))
+                avg_win_rate = sum(p.get("winRate", 0) for p in standings if isinstance(p.get("winRate"), (int, float))) / len([p for p in standings if isinstance(p.get("winRate"), (int, float))]) if standings else 0
+                
+                print(f"\n    Tournament Statistics:")
+                print(f"      Total Games Played: {total_games}")
+                print(f"      Players with Decklists: {players_with_decks}/{player_count} ({players_with_decks/player_count:.1%})")
+                print(f"      Average Win Rate: {avg_win_rate:.1%}")
+                
+        print(f"\n{'='*100}")
+        print(f"Summary: Processed {len(detailed_tournaments)} tournaments with detailed player data")
+        
+        # Overall statistics across all tournaments
+        total_players = sum(len(t.get("standings", [])) for t in detailed_tournaments)
+        total_tournaments_with_decklists = sum(1 for t in detailed_tournaments if any(p.get("decklist") for p in t.get("standings", [])))
+        
+        print(f"Total players across all tournaments: {total_players}")
+        print(f"Tournaments with at least one decklist: {total_tournaments_with_decklists}/{len(detailed_tournaments)}")
+        
+        # Find tournaments with NO decklists at all
+        tournaments_with_no_decklists = []
+        for tournament in detailed_tournaments:
+            standings = tournament.get("standings", [])
+            has_any_decklist = any(player.get("decklist") for player in standings)
+            if not has_any_decklist and standings:  # Only include if there are players but no decklists
+                tournaments_with_no_decklists.append(tournament)
+        
+        # Display tournaments with no decklists
+        print(f"\n{'='*100}")
+        print(f"TOURNAMENTS WITH NO DECKLISTS ({len(tournaments_with_no_decklists)} found):")
+        print(f"{'='*100}")
+        
+        if tournaments_with_no_decklists:
+            for i, tournament in enumerate(tournaments_with_no_decklists, 1):
+                tid = tournament.get("TID", "Unknown")
+                name = tournament.get("tournamentName", "Unknown")
+                start_date = tournament.get("startDate", 0)
+                player_count = len(tournament.get("standings", []))
+                top_cut = tournament.get("topCut", 0)
+                
+                # Convert Unix timestamp to readable date
+                if start_date:
+                    date_str = time.strftime("%Y-%m-%d", time.localtime(start_date))
+                else:
+                    date_str = "Unknown"
+                
+                print(f"{i:2d}. {tid}")
+                print(f"    Name: {name}")
+                print(f"    Date: {date_str}")
+                print(f"    Players: {player_count}")
+                print(f"    Top Cut: {top_cut}")
+                print(f"    Decklists: 0/{player_count} (0%)")
+                print()
+                
+            print(f"Total tournaments with no decklists: {len(tournaments_with_no_decklists)}")
+            print(f"Percentage of tournaments with no decklists: {len(tournaments_with_no_decklists)/len(detailed_tournaments):.1%}")
+        else:
+            print("All tournaments have at least one decklist!")
+            
+    else:
+        print("No tournaments found matching the criteria.")
+
+    # # Test 1: Get recent tournaments
     # print("1. Getting last 10 tournaments...")
-    recent_filters = TournamentFilters(last=10, game="Magic: The Gathering", format="EDH", min_players=50)
+    # recent_filters = TournamentFilters(last=10, game="Magic: The Gathering", format="EDH")
     # recent_tournaments = api.get_tournaments(recent_filters)
     # print_tournaments(recent_tournaments)
 
-    # Test 2: Get tournament IDs only
-    print("2. Getting tournament IDs only...")
-    tournament_ids = api.get_tournament_ids(recent_filters)
-    print(f"Tournament IDs: {tournament_ids}")
+    # # Test 2: Get tournament IDs only
+    # print("2. Getting tournament IDs only...")
+    # tournament_ids = api.get_tournament_ids(recent_filters)
+    # print(f"Tournament IDs: {tournament_ids}")
 
-    # Test 3: Filter by game and format using convenience method
-    print("\n3. Getting Magic: The Gathering EDH tournaments...")
-    mtg_tournaments = api.get_mtg_tournaments(
-        format_name="EDH", min_players=50, last_n=20
-    )
-    print_tournaments(mtg_tournaments)
+    # # Test 3: Filter by game and format using convenience method
+    # print("\n3. Getting Magic: The Gathering EDH tournaments...")
+    # mtg_tournaments = api.get_mtg_tournaments(
+    #     format_name="EDH", min_players=50, last_n=20
+    # )
+    # print_tournaments(mtg_tournaments)
 
-    # Test 4: Get details for first tournament (if any found)
-    if tournament_ids:
-        print(f"\n4. Getting details for tournament: {tournament_ids[0]}")
-        details = api.get_tournament_details(tournament_ids[0])
-        print_tournament_details(details)
+    # # Test 4: Get details for first tournament (if any found)
+    # if tournament_ids:
+    #     print(f"\n4. Getting details for tournament: {tournament_ids[0]}")
+    #     details = api.get_tournament_details(tournament_ids[0])
+    #     print_tournament_details(details)
 
-    # Test 5: Demonstrate error handling
-    print("\n5. Testing error handling with invalid tournament ID...")
-    try:
-        invalid_details = api.get_tournament_details("invalid_id_12345")
-        if not invalid_details:
-            print("Correctly handled invalid tournament ID")
-    except ValueError as e:
-        print(f"Caught expected error: {e}")
+    # # Test 5: Demonstrate error handling
+    # print("\n5. Testing error handling with invalid tournament ID...")
+    # try:
+    #     invalid_details = api.get_tournament_details("invalid_id_12345")
+    #     if not invalid_details:
+    #         print("Correctly handled invalid tournament ID")
+    # except ValueError as e:
+    #     print(f"Caught expected error: {e}")
 
-    # Test 6: Demonstrate rate limiting features
-    demonstrate_rate_limiting(api)
+    # # Test 6: Demonstrate rate limiting features
+    # demonstrate_rate_limiting(api)
     
-    # Test 7: Bulk tournament analysis
-    bulk_tournament_analysis(api, "EDH")
+    # # Test 7: Bulk tournament analysis
+    # bulk_tournament_analysis(api, "EDH")
 
 
 if __name__ == "__main__":
