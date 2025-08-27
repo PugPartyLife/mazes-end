@@ -52,14 +52,15 @@ const PlayerSurvey = () => {
       'BGW': 'Abzan (White/Black/Green)',
       'BRU': 'Grixis (Blue/Black/Red)',
       'GRW': 'Naya (Red/Green/White)',
-      'BUG': 'Sultai (Black/Green/Blue)',
+      'BGU': 'Sultai (Black/Green/Blue)',
       'RUW': 'Jeskai (Blue/Red/White)',
       
       // Four-color (unofficial names)
-      'BRUW': 'Chaos (Non-Green)',
+      'BRUW': 'Artifice (Non-Green)',
       'BGUW': 'Growth (Non-Red)',
       'BGRW': 'Aggression (Non-Blue)',
       'GRUW': 'Altruism (Non-Black)',
+      'BGRU': 'Chaos (Non-White)',
       'BGRUW': 'WUBRG (All Colors)'
     };
     
