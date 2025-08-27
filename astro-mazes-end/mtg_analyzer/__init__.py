@@ -11,7 +11,7 @@ from .models import CardEntry, ParsedDeck, CardStats, PlayerCardPreference, Comm
 from .main import MTGAnalyzer, create_analyzer
 
 __version__ = "1.0.0"
-__author__ = "MTG Analysis Tools"
+__author__ = "Connor Cameron"
 
 # Export main components
 __all__ = [
