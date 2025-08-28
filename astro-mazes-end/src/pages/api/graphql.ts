@@ -1,3 +1,5 @@
+import SchemaBuilder from '@pothos/core';
+import DataloaderPlugin from '@pothos/plugin-dataloader';
 import { createYoga } from 'graphql-yoga'
 import { builder } from '../../lib/graphql/schema.ts'
 

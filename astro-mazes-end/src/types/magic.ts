@@ -37,7 +37,7 @@ export type CasualArchetype =
   | 'Group Hug'
   | 'Spellslinger'
   | 'Aristocrats'
-  | 'Tribal'
+  | 'Kindred'
   | 'Big Mana'
   | 'Graveyard'
   | 'Mill'
