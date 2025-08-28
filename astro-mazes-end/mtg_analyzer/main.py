@@ -120,7 +120,7 @@ def integrate_with_topdeck_api():
     
     # After getting detailed_tournaments from API:
     if detailed_tournaments:
-        from mtg_analysis import create_analyzer
+        from mtg_analyzer import create_analyzer
         
         # Create analyzer
         analyzer = create_analyzer(
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     print("This is a wrapper module. To use:")
     print()
     print("1. Create database schema using the SQL file")
-    print("2. Import: from mtg_analysis import create_analyzer")
+    print("2. Import: from mtg_analyzer import create_analyzer")
     print("3. Create analyzer: analyzer = create_analyzer('localhost', 'user', 'pass', 'db')")
     print("4. Run analysis: analyzer.run_full_analysis(tournament_data)")
     print()
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     print("```python")
     print("# In your topdeck_api.py main() function:")
     print("if detailed_tournaments:")
-    print("    from mtg_analysis import create_analyzer")
+    print("    from mtg_analyzer import create_analyzer")
     print("    ")
     print("    analyzer = create_analyzer(")
     print("        host='localhost',")

@@ -244,7 +244,7 @@ def integrate_with_topdeck_api_example():
 # Add this to your topdeck_api.py main() function:
 
 if detailed_tournaments:
-    from mtg_analysis.sqlite_main import create_sqlite_analyzer
+    from mtg_analyzer.sqlite_main import create_sqlite_analyzer
     
     # Create SQLite analyzer
     analyzer = create_sqlite_analyzer("mtg_tournament_data.db")
