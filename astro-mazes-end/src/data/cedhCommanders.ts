@@ -1,5 +1,5 @@
 // cEDH and High Power commanders by color combination
-import type { CedhCommander, ColorCombination, CommandersByColor } from '../types';
+import type { CedhCommander, ColorCombination, CommandersByColor } from '../types/types';
 
 export const cedhCommanders: CommandersByColor<CedhCommander> = {
   'W': [
@@ -15,7 +15,7 @@ export const cedhCommanders: CommandersByColor<CedhCommander> = {
     { name: 'Tinybones, Trinket Thief', archetype: 'Stax', description: 'Discard-based resource denial' }
   ],
   'R': [
-    { name: 'Magda, Brazen Outlaw', archetype: 'Combo', description: 'Dwarf tribal with Clock of Omens' },
+    { name: 'Magda, Brazen Outlaw', archetype: 'Combo', description: 'Dwarf kindred with Clock of Omens' },
     { name: 'Godo, Bandit Warlord', archetype: 'Combo', description: 'Helm of the Host infinite combat' }
   ],
   'G': [
@@ -39,7 +39,7 @@ export const cedhCommanders: CommandersByColor<CedhCommander> = {
     { name: 'Chatterfang, Squirrel General', archetype: 'Combo', description: 'Squirrel combo loops' }
   ],
   'RW': [
-    { name: 'Winota, Joiner of Forces', archetype: 'Aggro', description: 'Human tribal with Kiki combo' },
+    { name: 'Winota, Joiner of Forces', archetype: 'Aggro', description: 'Human kindred with Kiki combo' },
     { name: 'Alesha, Who Smiles at Death', archetype: 'Combo', description: 'Master of Cruelties combo' }
   ],
   'GW': [
@@ -48,7 +48,7 @@ export const cedhCommanders: CommandersByColor<CedhCommander> = {
   ],
   'BW': [
     { name: 'Tymna/Ravos', archetype: 'Midrange', description: 'Hatebears with recursion' },
-    { name: 'Orah, Skyclave Hierophant', archetype: 'Combo', description: 'Cleric tribal loops' }
+    { name: 'Orah, Skyclave Hierophant', archetype: 'Combo', description: 'Cleric kindred loops' }
   ],
   'BGR': [
     { name: 'Korvold, Fae-Cursed King', archetype: 'Combo', description: 'Food Chain combo engine' },
@@ -87,7 +87,7 @@ export const cedhCommanders: CommandersByColor<CedhCommander> = {
     { name: 'Animar, Soul of Elements', archetype: 'Combo', description: 'Ancestral Statue combo' }
   ],
   'BRW': [
-    { name: 'Edgar Markov', archetype: 'Aggro', description: 'Vampire tribal with Ad Nauseam' },
+    { name: 'Edgar Markov', archetype: 'Aggro', description: 'Vampire kindred with Ad Nauseam' },
     { name: 'Alesha, Who Smiles at Death', archetype: 'Combo', description: 'Buried Alive reanimator' }
   ],
   'BGRW': [

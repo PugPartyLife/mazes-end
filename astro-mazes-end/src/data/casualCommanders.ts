@@ -1,29 +1,29 @@
 // Casual and Focused EDH commanders by color combination
-import type { CasualCommander, ColorCombination, CommandersByColor } from '../types';
+import type { CasualCommander, ColorCombination, CommandersByColor } from '../types/magic';
 
 export const casualCommanders: CommandersByColor<CasualCommander> = {
   'W': [
     { name: 'Sram, Senior Edificer', archetype: 'Voltron', description: 'Equipment/aura card draw engine' },
-    { name: 'Darien, King of Kjeldor', archetype: 'Tokens', description: 'Soldier tribal with lifegain synergy' }
+    { name: 'Darien, King of Kjeldor', archetype: 'Tokens', description: 'Soldier kindred with lifegain synergy' }
   ],
   'U': [
     { name: 'Braids, Conjurer Adept', archetype: 'Group Hug', description: 'Symmetrical cheating big spells' },
-    { name: 'Talrand, Sky Summoner', archetype: 'Spellslinger', description: 'Instant/sorcery tribal with drakes' }
+    { name: 'Talrand, Sky Summoner', archetype: 'Spellslinger', description: 'Instant/sorcery kindred with drakes' }
   ],
   'B': [
     { name: 'Ayara, First of Locthwain', archetype: 'Aristocrats', description: 'Black creature sacrifice with drain' },
     { name: 'Toshiro Umezawa', archetype: 'Spellslinger', description: 'Instant-speed black spells' }
   ],
   'R': [
-    { name: 'Krenko, Mob Boss', archetype: 'Tribal', description: 'Explosive goblin tribal tokens' },
+    { name: 'Krenko, Mob Boss', archetype: 'Kindred', description: 'Explosive goblin kindred tokens' },
     { name: 'Purphoros, God of the Forge', archetype: 'Tokens', description: 'Token creation with burn damage' }
   ],
   'G': [
     { name: 'Omnath, Locus of Mana', archetype: 'Big Mana', description: 'Mana storage with X-spell payoffs' },
-    { name: 'Ezuri, Renegade Leader', archetype: 'Tribal', description: 'Elf tribal with overrun effects' }
+    { name: 'Ezuri, Renegade Leader', archetype: 'Kindred', description: 'Elf kindred with overrun effects' }
   ],
   'BU': [
-    { name: 'The Scarab God', archetype: 'Graveyard', description: 'Zombie tribal with recursion' },
+    { name: 'The Scarab God', archetype: 'Graveyard', description: 'Zombie kindred with recursion' },
     { name: 'Phenax, God of Deception', archetype: 'Mill', description: 'Mill strategy with big creatures' }
   ],
   'GU': [
@@ -87,7 +87,7 @@ export const casualCommanders: CommandersByColor<CasualCommander> = {
     { name: 'Animar, Soul of Elements', archetype: 'Creatures', description: 'Cost reduction with creatures' }
   ],
   'BRW': [
-    { name: 'Edgar Markov', archetype: 'Tribal', description: 'Vampire tribal with eminence' },
+    { name: 'Edgar Markov', archetype: 'Kindred', description: 'Vampire kindred with eminence' },
     { name: 'Alesha, Who Smiles at Death', archetype: 'Reanimator', description: 'Small creature reanimation' }
   ],
   'BGRW': [

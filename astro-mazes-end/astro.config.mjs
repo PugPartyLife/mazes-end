@@ -6,6 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 export default defineConfig({
   // site: "https://mazesend.com",
+  output: 'server',
   integrations: [react()],
   server: {
     host: true, // Allow external connections

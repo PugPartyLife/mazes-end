@@ -58,7 +58,22 @@ class DecklistParser:
             return []
             
         entries = []
+        
+        # Only process known deck sections, ignore tournament metadata
+        VALID_SECTIONS = {
+            'commanders', 'commander', 'mainboard', 'sideboard', 
+            'maybeboard', 'command zone', 'deck'
+        }
+        
         for section_name, cards in deck_obj.items():
+            # Skip if this looks like tournament metadata
+            if section_name.lower() in ['game', 'format', 'tournament_id', 'tid', 'tournament_name']:
+                continue
+                
+            # Only process if it's a valid deck section
+            if section_name.lower() not in VALID_SECTIONS:
+                continue
+                
             normalized_section = self._normalize_section_name(section_name)
             
             if isinstance(cards, dict):

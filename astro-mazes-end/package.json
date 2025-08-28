@@ -11,15 +11,22 @@
   },
   "dependencies": {
     "@astrojs/react": "^4.3.0",
-    "@pothos/core": "^4.8.1",
+    "@pothos/core": "^4.9.0",
+    "@pothos/plugin-dataloader": "^4.4.3",
     "@tailwindcss/vite": "^4.1.12",
     "@types/react": "^19.1.11",
     "@types/react-dom": "^19.1.7",
     "astro": "^5.13.3",
+    "dataloader": "^2.2.3",
+    "graphql": "^16.11.0",
     "graphql-yoga": "^5.15.1",
     "lucide-react": "^0.541.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "sqlite3": "^5.1.7",
     "tailwindcss": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/sqlite3": "^3.1.11"
   }
 }

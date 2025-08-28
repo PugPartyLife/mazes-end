@@ -3,7 +3,7 @@ import { ArrowRight, ArrowLeft, Home } from 'lucide-react';
 import { magicColors, getColorCombinationName } from '../data/magicColors';
 import { cedhCommanders } from '../data/cedhCommanders';
 import { casualCommanders } from '../data/casualCommanders';
-import type { ColorId } from '../types';
+import type { ColorId } from '../types/magic';
 
 interface SurveyOption {
   value: string;
