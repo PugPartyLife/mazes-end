@@ -1,5 +1,5 @@
 // Magic color data and combination mappings
-import type { MagicColor, ColorCombination } from '../types';
+import type { MagicColor, ColorCombination } from '../types/types';
 
 export const magicColors: MagicColor[] = [
   { id: 'W', name: 'White', symbol: 'W', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-400', textColor: 'text-gray-800' },

@@ -1,5 +1,5 @@
 // cEDH and High Power commanders by color combination
-import type { CedhCommander, ColorCombination, CommandersByColor } from '../types';
+import type { CedhCommander, ColorCombination, CommandersByColor } from '../types/types';
 
 export const cedhCommanders: CommandersByColor<CedhCommander> = {
   'W': [

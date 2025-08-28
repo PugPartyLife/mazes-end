@@ -1,5 +1,5 @@
 // Casual and Focused EDH commanders by color combination
-import type { CasualCommander, ColorCombination, CommandersByColor } from '../types';
+import type { CasualCommander, ColorCombination, CommandersByColor } from '../types/magic';
 
 export const casualCommanders: CommandersByColor<CasualCommander> = {
   'W': [
