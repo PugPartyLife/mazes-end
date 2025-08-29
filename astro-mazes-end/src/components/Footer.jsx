@@ -37,7 +37,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-me-navy text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Main Footer Content */}
         <div className="py-16">
@@ -45,7 +45,7 @@ export default function Footer() {
             {/* Brand Section */}
             <div className="lg:col-span-2">
               <div className="text-2xl font-bold bg-gradient-to-r from-gray-400 to-gray-600 bg-clip-text text-transparent mb-4">
-                <span className="text-white">The Maze's End</span>
+                <span className="text-me-yellow font-serif">THE MAZE'S END</span>
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 Wanting to get into cEDH but not sure where to start?

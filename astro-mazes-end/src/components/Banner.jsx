@@ -1,28 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, ChevronDown } from 'lucide-react';
+import { ArrowRight, ChevronDown, Strikethrough } from 'lucide-react';
 
 export default function Banner() {
   const [currentWord, setCurrentWord] = useState(0);
   const words = ['1. Learn', '2. Study', '3. Practice', '4. Win'];
 
   useEffect(() => {
+    const element = document.getElementById('strikethrough-word');
+
+    const strikethroughInterval = setInterval(() => {
+      if (element) {
+        element.classList.add('line-through');
+        setTimeout(() => {
+          element.classList.remove('line-through');
+        }, 200);
+      }
+    }, 1800);
+
     const interval = setInterval(() => {
       setCurrentWord((prev) => (prev + 1) % words.length);
     }, 2000);
-    return () => clearInterval(interval);
+    
+    return function() {
+      clearInterval(interval);
+      clearInterval(strikethroughInterval);
+    }
   }, []);
 
   return (
-    <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+    <section className="relative h-[65vh] flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900">
         {/* Background image across entire banner */}
         <div 
           className="absolute inset-0 opacity-20 bg-cover bg-center"
           style={{
 //            backgroundImage: 'url("https://cards.scryfall.io/large/front/4/0/401f7042-24fd-42a0-ae7c-e6b7de1aa446.jpg?1562906764")',
-            backgroundImage: 'url("/mazesend.jpg")',
-            backgroundPosition: 'center 37%'
+            backgroundImage: 'url("/Maze_s_End_5000x.webp")',
+            backgroundSize: 'cover',
           }}
         ></div>
         
@@ -39,14 +54,14 @@ export default function Banner() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="space-y-6">
             {/* Main Heading */}
-            <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
-                The Maze's End
+            <h1 className="font-serif font-bold text-4xl md:text-6xl text-me-yellow leading-tight">
+                THE MAZE'S END
               <br />
-              <span className="relative">
-                  <span className="text-4xl md:text-5xl bg-gradient-to-r from-gray-300 to-gray-600 bg-clip-text text-transparent">
+              <div className="relative">
+                  <span id="strikethrough-word" className=" font-handwritten text-4xl md:text-5xl bg-gradient-to-r text-white">
                   {words[currentWord]}
                   </span>
-              </span>
+              </div>
             </h1>
 
             {/* Subheading */}

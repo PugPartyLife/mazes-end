@@ -1,76 +1,117 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Navigation from '../components/Navigation.jsx';
-import Banner from '../components/Banner.jsx';
-import Footer from '../components/Footer.jsx';
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation.jsx";
+import Banner from "../components/Banner.jsx";
+import Footer from "../components/Footer.jsx";
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900">
     <Navigation client:load />
     <Banner client:load />
-    
-    <!-- Dark mode content section -->
-    <section class="py-20 bg-gray-800">
+
+    <section class="py-20 bg-gray-800 px-4 sm:px-6 lg:px-8">
+      
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 class="text-4xl font-bold text-white mb-8">
-          You can learn cEDH!
+          Learn to <span class="text-me-yellow font-serif">MASTER</span> cEDH!
         </h2>
-        <div class="text-lg text-gray-300 max-w-4xl mx-auto text-left space-y-6">
-          <div>
-            <span class="font-bold text-white">What is (c)EDH?</span>
-            <br/>
-            Elder Dragon Highlander is an "eternal" format of Magic the Gathering, meaning, you can play any card unless it is explicitly on the banlist. The rules can be found here, (RULES).
-          </div>
-          
-          <div>
-            <span class="font-bold text-white">With 25,000+ legal cards, where do you even start?</span>
-            <br/>
-            That's where we come in. Staple cards, combos, routing, decks from the pros, and access to infographics to analyze your own cards, commanders, and combos.
-	  </div>
-	  <div>
-            <span class="font-bold text-white">Great, but I'm looking to learn myself.</span>
-	    <br/>
-	    Cool! Check these sites out to get competitive:&nbsp;<a class="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a>, <a class="hover:bg-gray-500 text-white" href="https://edhtop16.com" target="_blank">EDHtop16</a>, <a class="hover:bg-gray-500 text-white" href="https://playnicemtg.com" target="_blank">Play Nice</a>
-	    <p class="text-sm">Data provided by:&nbsp;<a class="hover:bg-gray-500 text-white" href="https://topdeck.gg" target="_blank">TopDeck.gg</a></p>
-	  </div>
+      </div>
+
+      <!-- Feature Cards -->
+      <div class="grid md:grid-cols-3 gap-8 mt-16">
+        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
+          <h3 class="text-2xl font-bold text-white mb-4">Learn the Basics</h3>
+          <p class="text-gray-300 mb-6">
+            Understanding cEDH fundamentals, from deck construction to winning
+            strategies.
+          </p>
+          <button
+            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
+          >
+            Start Learning
+          </button>
         </div>
 
-        <!-- Feature Cards -->
-        <div class="grid md:grid-cols-3 gap-8 mt-16">
-          <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-            <h3 class="text-2xl font-bold text-white mb-4">Learn the Basics</h3>
-            <p class="text-gray-300 mb-6">
-              Understanding cEDH fundamentals, from deck construction to winning strategies.
-            </p>
-            <button class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200">
-              Start Learning
-            </button>
-          </div>
-          
-          <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-            <h3 class="text-2xl font-bold text-white mb-4">Explore Commanders</h3>
-            <p class="text-gray-300 mb-6">
-              Dive deep into the most competitive commanders and their optimal builds.
-            </p>
-            <button class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200">
-              Browse Commanders
-            </button>
-          </div>
-          
-          <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-            <h3 class="text-2xl font-bold text-white mb-4">Master Combos</h3>
-            <p class="text-gray-300 mb-6">
-              Learn game-winning combos and the cards that make them possible.
-            </p>
-            <button class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200">
-              Study Combos
-            </button>
-          </div>
+        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
+          <h3 class="text-2xl font-bold text-white mb-4">Explore Commanders</h3>
+          <p class="text-gray-300 mb-6">
+            Dive deep into the most competitive commanders and their optimal
+            builds.
+          </p>
+          <button
+            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
+          >
+            Browse Commanders
+          </button>
+        </div>
+
+        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
+          <h3 class="text-2xl font-bold text-white mb-4">Master Combos</h3>
+          <p class="text-gray-300 mb-6">
+            Learn game-winning combos and the cards that make them possible.
+          </p>
+          <button
+            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
+          >
+            Study Combos
+          </button>
         </div>
       </div>
     </section>
-    
-    <Footer />
+
+    <section class="py-20 bg-navy-800">
+      <div class="text-lg text-gray-300 max-w-4xl mx-auto text-left space-y-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 class="text-4xl font-bold text-white mb-8">
+            Where to <span class="text-me-yellow font-serif">START</span>?
+          </h2>
+        </div>
+        <div>
+          <span class="font-bold text-white">What is (c)EDH?</span>
+          <br />
+          Elder Dragon Highlander is an "eternal" format of Magic the Gathering,
+          meaning, you can play any card unless it is explicitly on the banlist.
+          The rules can be found here, (RULES).
+        </div>
+
+        <div>
+          <span class="font-bold text-white"
+            >With 25,000+ legal cards, where do you even start?</span
+          >
+          <br />
+          That's where we come in. Staple cards, combos, routing, decks from the
+          pros, and access to infographics to analyze your own cards, commanders,
+          and combos.
+        </div>
+        <div>
+          <span class="font-bold text-white"
+            >Great, but I'm looking to learn myself.</span
+          >
+          <br />
+          Cool! Check these sites out to get competitive:&nbsp;<a
+            class="hover:bg-gray-500 text-white"
+            href="https://topdeck.gg"
+            target="_blank">TopDeck.gg</a
+          >, <a
+            class="hover:bg-gray-500 text-white"
+            href="https://edhtop16.com"
+            target="_blank">EDHtop16</a
+          >, <a
+            class="hover:bg-gray-500 text-white"
+            href="https://playnicemtg.com"
+            target="_blank">Play Nice</a
+          >
+          <p class="text-sm">
+            Data provided by:&nbsp;<a
+              class="hover:bg-gray-500 text-white"
+              href="https://topdeck.gg"
+              target="_blank">TopDeck.gg</a>
+          </p>
+        </div>
+      </div>
+    </section>
   </div>
+
+  <Footer />
 </Layout>
