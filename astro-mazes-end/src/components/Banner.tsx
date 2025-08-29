@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
+import CtaButton from '../components/CtaButton.tsx';
 
 interface Stat {
   number: string;
@@ -40,7 +41,7 @@ export default function Banner() {
   ];
 
   return (
-    <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+    <section className="relative h-[75vh] flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900">
         {/* Background image across entire banner */}
@@ -84,21 +85,9 @@ export default function Banner() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
-                  <button
-                    onClick={() => window.location.href = '/tour'}
-                    className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2"
-                  >
-                      Get Started!
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                  </button>
-                  <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
-                      Learn cEDH
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                  </button>
-                  <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
-                      Cards and Combos
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                  </button>
+                  <CtaButton buttonText="Get Started!" buttonHref="/tour" arrowRight={true} />
+                  <CtaButton buttonText="Learn cEDH" buttonHref="/learn-the-basics" arrowRight={true} />
+                  <CtaButton buttonText="Cards and Combos" buttonHref="/cards-combos" arrowRight={true} />
               </div>
 
             {/* Stats */}

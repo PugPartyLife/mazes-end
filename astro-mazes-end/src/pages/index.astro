@@ -3,6 +3,8 @@ import Layout from "../layouts/Layout.astro";
 import Navigation from "../components/Navigation.jsx";
 import Banner from "../components/Banner.jsx";
 import Footer from "../components/Footer.jsx";
+import FeatureSection from "../components/FeatureSection.js";
+
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
@@ -10,55 +12,7 @@ import Footer from "../components/Footer.jsx";
     <Navigation client:load />
     <Banner client:load />
 
-    <section class="py-20 bg-gray-800 px-4 sm:px-6 lg:px-8">
-      
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 class="text-4xl font-bold text-white mb-8">
-          Learn to <span class="text-me-yellow font-serif">MASTER</span> cEDH!
-        </h2>
-      </div>
-
-      <!-- Feature Cards -->
-      <div class="grid md:grid-cols-3 gap-8 mt-16">
-        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-          <h3 class="text-2xl font-bold text-white mb-4">Learn the Basics</h3>
-          <p class="text-gray-300 mb-6">
-            Understanding cEDH fundamentals, from deck construction to winning
-            strategies.
-          </p>
-          <button
-            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-          >
-            Start Learning
-          </button>
-        </div>
-
-        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-          <h3 class="text-2xl font-bold text-white mb-4">Explore Commanders</h3>
-          <p class="text-gray-300 mb-6">
-            Dive deep into the most competitive commanders and their optimal
-            builds.
-          </p>
-          <button
-            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-          >
-            Browse Commanders
-          </button>
-        </div>
-
-        <div class="bg-gray-700 p-8 rounded-lg border border-gray-600">
-          <h3 class="text-2xl font-bold text-white mb-4">Master Combos</h3>
-          <p class="text-gray-300 mb-6">
-            Learn game-winning combos and the cards that make them possible.
-          </p>
-          <button
-            class="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-          >
-            Study Combos
-          </button>
-        </div>
-      </div>
-    </section>
+    <FeatureSection client:load />
 
     <section class="py-20 bg-navy-800">
       <div class="text-lg text-gray-300 max-w-4xl mx-auto text-left space-y-6">
@@ -106,7 +60,8 @@ import Footer from "../components/Footer.jsx";
             Data provided by:&nbsp;<a
               class="hover:bg-gray-500 text-white"
               href="https://topdeck.gg"
-              target="_blank">TopDeck.gg</a>
+              target="_blank">TopDeck.gg</a
+            >
           </p>
         </div>
       </div>

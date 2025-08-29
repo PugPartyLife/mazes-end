@@ -28,9 +28,9 @@ export default function Footer() {
     {
       title: 'Team',
       links: [
-        { name: 'PugParty', href: '#' },
-        { name: 'ThreadPool', href: '#' },
-        { name: 'Revert Creations', href: '#' },
+        { name: 'PugParty', href: '#', external: true },
+        { name: 'ThreadPool', href: '#', external: true },
+        { name: 'Revert Creations', href: 'https://revertcreations.com', external: true },
       ],
     },
     {
