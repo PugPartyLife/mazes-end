@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown } from 'lucide-react';
+import CtaButton from '../components/CtaButton.tsx';
 
 interface Stat {
   number: string;
@@ -11,10 +12,25 @@ export default function Banner() {
   const words: string[] = ['1. Learn', '2. Study', '3. Practice', '4. Win'];
 
   useEffect(() => {
+    const element = document.getElementById('strikethrough-word');
+
+    const strikethroughInterval = setInterval(() => {
+      if (element) {
+        element.classList.add('line-through');
+        setTimeout(() => {
+          element.classList.remove('line-through');
+        }, 200);
+      }
+    }, 1800);
+
     const interval = setInterval(() => {
-      setCurrentWord((prev: number) => (prev + 1) % words.length);
+      setCurrentWord((prev) => (prev + 1) % words.length);
     }, 2000);
-    return () => clearInterval(interval);
+    
+    return function() {
+      clearInterval(interval);
+      clearInterval(strikethroughInterval);
+    }
   }, []);
 
   const stats: Stat[] = [
@@ -25,7 +41,7 @@ export default function Banner() {
   ];
 
   return (
-    <section className="relative h-[85vh] flex items-center justify-center overflow-hidden">
+    <section className="relative h-[75vh] flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900">
         {/* Background image across entire banner */}
@@ -33,7 +49,8 @@ export default function Banner() {
           className="absolute inset-0 opacity-20 bg-cover bg-center"
           style={{
 //            backgroundImage: 'url("https://cards.scryfall.io/large/front/4/0/401f7042-24fd-42a0-ae7c-e6b7de1aa446.jpg?1562906764")',
-            backgroundImage: 'url("/mazesend.jpg")',
+//            backgroundImage: 'url("/mazesend.jpg")',
+            backgroundImage: 'url("/Maze_s_End_5000x.webp")',
             backgroundPosition: 'center 37%'
           }}
         ></div>
@@ -49,41 +66,29 @@ export default function Banner() {
 
         {/* Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <div className="space-y-6">
-            {/* Main Heading */}
-            <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
-                The Maze's End
-              <br />
-              <span className="relative">
-                  <span className="text-4xl md:text-5xl bg-gradient-to-r from-gray-300 to-gray-600 bg-clip-text text-transparent">
-                  {words[currentWord]}
-                  </span>
-              </span>
-            </h1>
+          <div className="space-y-6">
+              {/* Main Heading */}
+              <h1 className="font-serif font-bold text-4xl md:text-6xl text-me-yellow leading-tight">
+                  THE MAZE'S END
+                <br />
+                <div className="relative">
+                    <span id="strikethrough-word" className=" font-handwritten text-4xl md:text-5xl bg-gradient-to-r text-white">
+                    {words[currentWord]}
+                    </span>
+                </div>
+              </h1>
 
-            {/* Subheading */}
-            <p className="text-lg md:text-xl text-gray-100 max-w-2xl mx-auto leading-relaxed">
-            You are not lost. All Gates lead to the Maze's End...
-            </p>
+              {/* Subheading */}
+              <p className="text-lg md:text-xl text-gray-100 max-w-2xl mx-auto leading-relaxed">
+              You are not lost. All Gates lead to the Maze's End...
+              </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
-                <button
-                  onClick={() => window.location.href = '/tour'}
-                  className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2"
-                >
-                    Get Started!
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                </button>
-                <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
-                    Learn cEDH
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                </button>
-                <button className="cursor-pointer border-2 border-white/30 text-white px-6 py-3 rounded-lg text-sm font-medium hover:bg-white/10 transition-all duration-300 backdrop-blur-sm flex items-center gap-2">
-                    Cards and Combos
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-                </button>
-            </div>
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
+                  <CtaButton buttonText="Get Started!" buttonHref="/tour" arrowRight={true} />
+                  <CtaButton buttonText="Learn cEDH" buttonHref="/learn-the-basics" arrowRight={true} />
+                  <CtaButton buttonText="Cards and Combos" buttonHref="/cards-combos" arrowRight={true} />
+              </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 max-w-2xl mx-auto">
@@ -94,7 +99,7 @@ export default function Banner() {
                 </div>
             ))}
             </div>
-        </div>
+          </div>
         </div>
 
         {/* Scroll Indicator */}

@@ -28,9 +28,9 @@ export default function Footer() {
     {
       title: 'Team',
       links: [
-        { name: 'PugParty', href: '#' },
-        { name: 'ThreadPool', href: '#' },
-        { name: 'Revert Creations', href: '#' },
+        { name: 'PugParty', href: '#', external: true },
+        { name: 'ThreadPool', href: '#', external: true },
+        { name: 'Revert Creations', href: 'https://revertcreations.com', external: true },
       ],
     },
     {
@@ -65,8 +65,8 @@ export default function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
             {/* Brand Section */}
             <div className="lg:col-span-2">
-              <div className="text-2xl font-bold bg-gradient-to-r from-gray-400 to-gray-600 bg-clip-text text-transparent mb-4">
-                <span className="text-white">The Maze's End</span>
+            <div className="text-2xl font-bold bg-gradient-to-r from-gray-400 to-gray-600 bg-clip-text text-transparent mb-4">
+                <span className="text-me-yellow font-serif">THE MAZE'S END</span>
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 Wanting to get into cEDH but not sure where to start?
