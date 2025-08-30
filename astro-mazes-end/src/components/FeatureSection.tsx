@@ -41,18 +41,16 @@ export default function FeatureSection() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-8 mt-16">
-        {
-          CTACardProps.map((item: CTACardProp) => (
-            <CTACard
-              title={ item.title }
-              description={ item.description }
-              buttonText={ item.buttonText }
-              buttonHref={ item.buttonHref }
-            />
-          ))
-        }
+        {CTACardProps.map((item: CTACardProp, index) => (
+          <CTACard
+            key={item.title} // Add key prop using title (unique identifier)
+            title={item.title}
+            description={item.description}
+            buttonText={item.buttonText}
+            buttonHref={item.buttonHref}
+          />
+        ))}
       </div>
     </section>
   )
 }
-

@@ -17,15 +17,22 @@ Example:
         ...     participant_min=100
         ... )
         >>> mtg_tournaments = api.get_tournaments(filters)
+        
+    JSON Output:
+        >>> tournaments = api.get_tournaments(filters)
+        >>> write_tournaments_to_json(tournaments, "tournaments.json")
+        >>> card_names = extract_all_card_names(tournaments)
+        >>> write_card_names_to_json(card_names, "card_names.json")
 """
 
 import os
 import json
 import time
 from dataclasses import asdict, dataclass
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from threading import Lock
 from datetime import datetime, timedelta
+import re
 
 import requests
 
@@ -433,6 +440,250 @@ class TopdeckAPI:
             }
 
 
+def write_tournaments_to_json(tournaments: List[Dict], filename: str = "tournaments.json", indent: int = 2) -> None:
+    """Write tournament objects to JSON file.
+    
+    Saves the complete tournament data structure to a JSON file for later processing.
+    This includes all tournament metadata, player standings, decklists, and statistics.
+    
+    Args:
+        tournaments: List of tournament dictionaries from get_tournaments()
+        filename: Output JSON filename (default: "tournaments.json")
+        indent: JSON indentation level for pretty printing (default: 2)
+        
+    Example:
+        >>> tournaments = api.get_tournaments()
+        >>> write_tournaments_to_json(tournaments, "my_tournaments.json")
+        >>> print(f"Saved {len(tournaments)} tournaments to my_tournaments.json")
+    """
+    if not tournaments:
+        print("No tournaments to write to JSON.")
+        return
+    
+    try:
+        # Add metadata to the JSON output
+        output_data = {
+            "metadata": {
+                "export_timestamp": int(time.time()),
+                "export_date": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                "tournament_count": len(tournaments),
+                "total_players": sum(len(t.get("standings", [])) for t in tournaments),
+                "tournaments_with_decklists": sum(1 for t in tournaments if any(p.get("decklist") for p in t.get("standings", [])))
+            },
+            "tournaments": tournaments
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(output_data, f, indent=indent, ensure_ascii=False)
+        
+        print(f"Successfully wrote {len(tournaments)} tournaments to {filename}")
+        print(f"File size: {os.path.getsize(filename):,} bytes")
+        
+    except (IOError, OSError) as e:
+        print(f"Error writing tournaments to JSON file {filename}: {e}")
+    except Exception as e:
+        print(f"Unexpected error writing JSON file {filename}: {e}")
+
+
+def parse_decklist_text(decklist_text: str) -> List[str]:
+    """Parse decklist text and extract card names.
+    
+    Handles various decklist formats commonly found in tournament data.
+    Extracts card names while ignoring quantities, categories, and formatting.
+    
+    Args:
+        decklist_text: Raw decklist text from tournament data
+        
+    Returns:
+        List of card names found in the decklist
+        
+    Example:
+        >>> decklist = "1 Lightning Bolt\\n4 Counterspell\\n1 Black Lotus"
+        >>> cards = parse_decklist_text(decklist)
+        >>> print(cards)  # ['Lightning Bolt', 'Counterspell', 'Black Lotus']
+    """
+    if not decklist_text or not isinstance(decklist_text, str):
+        return []
+    
+    card_names = []
+    
+    # Split by lines and process each line
+    lines = decklist_text.strip().split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Skip common category headers
+        if line.lower() in ['commander:', 'commanders:', 'companion:', 'sideboard:', 'maindeck:', 'deck:']:
+            continue
+            
+        # Skip lines that are just categories or separators
+        if line.startswith('//') or line.startswith('#') or line == '---':
+            continue
+            
+        # Remove leading quantity (e.g., "4 Lightning Bolt" -> "Lightning Bolt")
+        # Handle formats like: "1 Card Name", "4x Card Name", "1  Card Name (Set) 123"
+        quantity_pattern = r'^\s*\d+x?\s+'
+        card_line = re.sub(quantity_pattern, '', line)
+        
+        if not card_line:
+            continue
+            
+        # Remove set codes and collector numbers (e.g., "(M21) 123" or "[M21]")
+        # This handles formats like "Lightning Bolt (M21) 123" or "Lightning Bolt [M21]"
+        set_pattern = r'\s*[\(\[][\w\d]+[\)\]]\s*\d*\s*$'
+        card_name = re.sub(set_pattern, '', card_line)
+        
+        # Remove trailing collector numbers (e.g., "Lightning Bolt 123")
+        collector_pattern = r'\s+\d+\s*$'
+        card_name = re.sub(collector_pattern, '', card_name)
+        
+        # Clean up any remaining whitespace
+        card_name = card_name.strip()
+        
+        # Skip empty results or lines that are just numbers/symbols
+        if card_name and not card_name.isdigit() and len(card_name) > 1:
+            card_names.append(card_name)
+    
+    return card_names
+
+
+def extract_all_card_names(tournaments: List[Dict]) -> Set[str]:
+    """Extract all unique card names from tournament decklists.
+    
+    Processes all decklists from all tournaments and extracts unique card names
+    for Scryfall API processing. Handles various decklist formats and removes
+    duplicates.
+    
+    Args:
+        tournaments: List of tournament dictionaries from get_tournaments()
+        
+    Returns:
+        Set of unique card names found across all tournaments
+        
+    Example:
+        >>> tournaments = api.get_tournaments()
+        >>> card_names = extract_all_card_names(tournaments)
+        >>> print(f"Found {len(card_names)} unique cards")
+    """
+    all_card_names = set()
+    
+    print("Extracting card names from tournament decklists...")
+    
+    total_decklists = 0
+    tournaments_processed = 0
+    
+    for tournament in tournaments:
+        standings = tournament.get("standings", [])
+        tournament_cards = set()
+        
+        for player in standings:
+            decklist = player.get("decklist")
+            if decklist:
+                total_decklists += 1
+                card_names = parse_decklist_text(decklist)
+                tournament_cards.update(card_names)
+                all_card_names.update(card_names)
+        
+        if tournament_cards:
+            tournaments_processed += 1
+            tid = tournament.get("TID", "Unknown")
+            print(f"  {tid}: {len(tournament_cards)} unique cards from {len([p for p in standings if p.get('decklist')])} decklists")
+    
+    print(f"\nCard extraction complete:")
+    print(f"  Tournaments processed: {tournaments_processed}/{len(tournaments)}")
+    print(f"  Total decklists processed: {total_decklists}")
+    print(f"  Total unique card names found: {len(all_card_names)}")
+    
+    return all_card_names
+
+
+def write_card_names_to_json(card_names: Set[str], filename: str = "card_names.json", indent: int = 2) -> None:
+    """Write unique card names to JSON file for Scryfall processing.
+    
+    Creates a JSON file containing all unique card names found in tournament data,
+    formatted for easy processing by Scryfall API scripts.
+    
+    Args:
+        card_names: Set of unique card names from extract_all_card_names()
+        filename: Output JSON filename (default: "card_names.json") 
+        indent: JSON indentation level for pretty printing (default: 2)
+        
+    Example:
+        >>> card_names = extract_all_card_names(tournaments)
+        >>> write_card_names_to_json(card_names, "cards_for_scryfall.json")
+    """
+    if not card_names:
+        print("No card names to write to JSON.")
+        return
+    
+    try:
+        # Sort card names for consistent output
+        sorted_card_names = sorted(list(card_names))
+        
+        # Create output structure with metadata
+        output_data = {
+            "metadata": {
+                "export_timestamp": int(time.time()),
+                "export_date": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                "total_unique_cards": len(sorted_card_names),
+                "description": "Unique card names extracted from tournament decklists for Scryfall API processing"
+            },
+            "card_names": sorted_card_names
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(output_data, f, indent=indent, ensure_ascii=False)
+        
+        print(f"Successfully wrote {len(sorted_card_names)} unique card names to {filename}")
+        print(f"File size: {os.path.getsize(filename):,} bytes")
+        
+        # Show a sample of card names
+        if sorted_card_names:
+            print(f"Sample card names: {sorted_card_names[:5]}")
+        
+    except (IOError, OSError) as e:
+        print(f"Error writing card names to JSON file {filename}: {e}")
+    except Exception as e:
+        print(f"Unexpected error writing JSON file {filename}: {e}")
+
+
+def save_tournament_data_with_cards(tournaments: List[Dict], base_filename: str = "tournament_data") -> tuple[str, str]:
+    """Save both tournament data and card names to JSON files.
+    
+    Convenience function that saves complete tournament data and extracted card names
+    to separate JSON files with consistent naming and timestamps.
+    
+    Args:
+        tournaments: List of tournament dictionaries from get_tournaments()
+        base_filename: Base filename for output files (default: "tournament_data")
+        
+    Returns:
+        Tuple of (tournaments_filename, card_names_filename) for the created files
+        
+    Example:
+        >>> tournaments = api.get_tournaments()
+        >>> t_file, c_file = save_tournament_data_with_cards(tournaments, "mtg_edh_data")
+        >>> print(f"Saved tournaments to {t_file} and cards to {c_file}")
+    """
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    tournaments_file = f"{base_filename}_{timestamp}.json"
+    cards_file = f"{base_filename}_cards_{timestamp}.json"
+    
+    print(f"Saving tournament data with timestamp {timestamp}...")
+    
+    # Save tournament data
+    write_tournaments_to_json(tournaments, tournaments_file)
+    
+    # Extract and save card names
+    card_names = extract_all_card_names(tournaments)
+    write_card_names_to_json(card_names, cards_file)
+    
+    return tournaments_file, cards_file
+
+
 def print_tournaments(tournaments: List[Dict]) -> None:
     """Pretty print tournament information.
     
@@ -572,10 +823,11 @@ def bulk_tournament_analysis(api: TopdeckAPI, format_name: str) -> None:
 
 
 def main() -> None:
-    """Main function for testing the API with rate limiting.
+    """Main function for testing the API with rate limiting and JSON output.
     
     Demonstrates various API usage patterns including basic tournament
-    fetching, filtering, detailed data retrieval, and rate limiting features.
+    fetching, filtering, detailed data retrieval, rate limiting features,
+    and JSON output functionality for tournament data and card extraction.
     Replace the TOPDECKGG_API_KEY variable with your actual key to test.
     """
     # TODO: Replace with your actual API key
@@ -591,214 +843,86 @@ def main() -> None:
     # Initialize API client with rate limiting
     api = TopdeckAPI(api_key=api_key)
 
-    print("=== Topdeck API Tournament Fetcher - Last 10 Days, Min 50 Participants ===")
+    print("=== Topdeck API Tournament Fetcher with JSON Output ===")
     print("API Rate Limit: 200 requests per minute\n")
 
     # Get recent tournaments with minimum 50 participants
-    # Note: We need to specify game and format as they are required by the API
     print("Fetching recent tournaments with minimum 50 participants...")
     print("Using Magic: The Gathering EDH as example (game and format are required)")
     
-    # Calculate 10 days ago as Unix timestamp
+    # Calculate 30 days ago as Unix timestamp for more data
     import time
-    ten_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
+    thirty_days_ago = int(time.time()) - (30 * 24 * 60 * 60)
     
     filters = TournamentFilters(
         game="Magic: The Gathering",
         format="EDH",
-        start=ten_days_ago,  # Tournaments from 10 days ago
-        participantMin=50
+        start=thirty_days_ago,  # Tournaments from 30 days ago
+        participantMin=50,
+        columns=[
+            "name", "decklist", "wins", "draws", "losses", 
+            "winsSwiss", "winsBracket", "lossesSwiss", "lossesBracket",
+            "winRate", "winRateSwiss", "winRateBracket", "byes", "id"
+        ]
     )
-    tournament_ids = api.get_tournament_ids(filters)
     
-    print(f"\nFound {len(tournament_ids)} tournament IDs:")
-    for i, tid in enumerate(tournament_ids, 1):
-        print(f"{i:3d}. {tid}")
+    tournaments = api.get_tournaments(filters)
     
-    # Now get detailed data for each tournament including all players
-    if tournament_ids:
-        print(f"\nFetching detailed data for all {len(tournament_ids)} tournaments...")
+    if tournaments:
+        print(f"\nFound {len(tournaments)} tournaments with detailed data")
         
-        # Get detailed tournament data with all player information
-        detailed_filters = TournamentFilters(
-            game="Magic: The Gathering",
-            format="EDH",
-            start=ten_days_ago,
-            participantMin=50,
-            columns=[
-                "name", "decklist", "wins", "draws", "losses", 
-                "winsSwiss", "winsBracket", "lossesSwiss", "lossesBracket",
-                "winRate", "winRateSwiss", "winRateBracket", "byes", "id"
-            ]
-        )
+        # Save tournament data and card names to JSON files
+        print("\n" + "="*80)
+        print("SAVING DATA TO JSON FILES")
+        print("="*80)
         
-        detailed_tournaments = api.get_tournaments(detailed_filters)
+        tournaments_file, cards_file = save_tournament_data_with_cards(tournaments, "mtg_edh_tournaments")
         
-        print(f"\nDetailed Tournament Data:")
-        print("=" * 100)
+        print(f"\nJSON files created:")
+        print(f"  Tournaments: {tournaments_file}")
+        print(f"  Card Names: {cards_file}")
         
-        for i, tournament in enumerate(detailed_tournaments, 1):
+        # Display summary statistics
+        print(f"\n" + "="*80)
+        print("TOURNAMENT SUMMARY")
+        print("="*80)
+        
+        total_players = sum(len(t.get("standings", [])) for t in tournaments)
+        total_decklists = sum(len([p for p in t.get("standings", []) if p.get("decklist")]) for t in tournaments)
+        tournaments_with_decklists = sum(1 for t in tournaments if any(p.get("decklist") for p in t.get("standings", [])))
+        
+        print(f"Total tournaments: {len(tournaments)}")
+        print(f"Total players: {total_players:,}")
+        print(f"Total decklists: {total_decklists:,}")
+        print(f"Tournaments with decklists: {tournaments_with_decklists}/{len(tournaments)} ({tournaments_with_decklists/len(tournaments):.1%})")
+        
+        # Show sample tournament info
+        print(f"\nSample tournaments:")
+        for i, tournament in enumerate(tournaments[:3], 1):
             tid = tournament.get("TID", "Unknown")
             name = tournament.get("tournamentName", "Unknown")
-            game = tournament.get("game", "Unknown")
-            format_name = tournament.get("format", "Unknown")
-            swiss_rounds = tournament.get("swissNum", 0)
-            top_cut = tournament.get("topCut", 0)
             start_date = tournament.get("startDate", 0)
+            players = len(tournament.get("standings", []))
             
-            # Convert Unix timestamp to readable date
             if start_date:
-                date_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_date))
+                date_str = time.strftime("%Y-%m-%d", time.localtime(start_date))
             else:
                 date_str = "Unknown"
-            
-            # Get standings (players)
-            standings = tournament.get("standings", [])
-            player_count = len(standings)
-            
-            print(f"\n{i:2d}. Tournament ID: {tid}")
-            print(f"    Name: {name}")
-            print(f"    Game: {game}")
-            print(f"    Format: {format_name}")
-            print(f"    Date: {date_str}")
-            print(f"    Swiss Rounds: {swiss_rounds}")
-            print(f"    Top Cut: {top_cut}")
-            print(f"    Total Players: {player_count}")
-            
-            # Event location data if available
-            if "eventData" in tournament and tournament["eventData"]:
-                event_data = tournament["eventData"]
-                city = event_data.get("city", "")
-                state = event_data.get("state", "")
-                location = event_data.get("location", "")
-                if city or state or location:
-                    location_str = f"{location}, {city}, {state}".strip(", ")
-                    print(f"    Location: {location_str}")
-            
-            # Display player data
-            if standings:
-                print(f"\n    Players:")
-                print(f"    {'Pos':<4} {'Name':<25} {'Record':<12} {'Win%':<6} {'Byes':<4} {'Has Deck'}")
-                print(f"    {'-'*4} {'-'*25} {'-'*12} {'-'*6} {'-'*4} {'-'*8}")
                 
-                for pos, player in enumerate(standings, 1):
-                    player_name = player.get("name", "Unknown")[:24]  # Truncate long names
-                    wins = player.get("wins", 0)
-                    losses = player.get("losses", 0) 
-                    draws = player.get("draws", 0)
-                    win_rate = player.get("winRate", 0)
-                    byes = player.get("byes", 0)
-                    has_decklist = "Yes" if player.get("decklist") else "No"
-                    player_id = player.get("id", "Unknown")
-                    
-                    # Format win rate as percentage
-                    win_rate_pct = f"{win_rate:.1%}" if isinstance(win_rate, (int, float)) else "N/A"
-                    
-                    record_str = f"{wins}-{losses}-{draws}"
-                    
-                    print(f"    {pos:<4} {player_name:<25} {record_str:<12} {win_rate_pct:<6} {byes:<4} {has_decklist}")
-                
-                # Show some statistics
-                total_games = sum(p.get("wins", 0) + p.get("losses", 0) + p.get("draws", 0) for p in standings)
-                players_with_decks = sum(1 for p in standings if p.get("decklist"))
-                avg_win_rate = sum(p.get("winRate", 0) for p in standings if isinstance(p.get("winRate"), (int, float))) / len([p for p in standings if isinstance(p.get("winRate"), (int, float))]) if standings else 0
-                
-                print(f"\n    Tournament Statistics:")
-                print(f"      Total Games Played: {total_games}")
-                print(f"      Players with Decklists: {players_with_decks}/{player_count} ({players_with_decks/player_count:.1%})")
-                print(f"      Average Win Rate: {avg_win_rate:.1%}")
-                
-        print(f"\n{'='*100}")
-        print(f"Summary: Processed {len(detailed_tournaments)} tournaments with detailed player data")
+            print(f"  {i}. {tid} - {name}")
+            print(f"     Date: {date_str}, Players: {players}")
         
-        # Overall statistics across all tournaments
-        total_players = sum(len(t.get("standings", [])) for t in detailed_tournaments)
-        total_tournaments_with_decklists = sum(1 for t in detailed_tournaments if any(p.get("decklist") for p in t.get("standings", [])))
-        
-        print(f"Total players across all tournaments: {total_players}")
-        print(f"Tournaments with at least one decklist: {total_tournaments_with_decklists}/{len(detailed_tournaments)}")
-        
-        # Find tournaments with NO decklists at all
-        tournaments_with_no_decklists = []
-        for tournament in detailed_tournaments:
-            standings = tournament.get("standings", [])
-            has_any_decklist = any(player.get("decklist") for player in standings)
-            if not has_any_decklist and standings:  # Only include if there are players but no decklists
-                tournaments_with_no_decklists.append(tournament)
-        
-        # Display tournaments with no decklists
-        print(f"\n{'='*100}")
-        print(f"TOURNAMENTS WITH NO DECKLISTS ({len(tournaments_with_no_decklists)} found):")
-        print(f"{'='*100}")
-        
-        if tournaments_with_no_decklists:
-            for i, tournament in enumerate(tournaments_with_no_decklists, 1):
-                tid = tournament.get("TID", "Unknown")
-                name = tournament.get("tournamentName", "Unknown")
-                start_date = tournament.get("startDate", 0)
-                player_count = len(tournament.get("standings", []))
-                top_cut = tournament.get("topCut", 0)
-                
-                # Convert Unix timestamp to readable date
-                if start_date:
-                    date_str = time.strftime("%Y-%m-%d", time.localtime(start_date))
-                else:
-                    date_str = "Unknown"
-                
-                print(f"{i:2d}. {tid}")
-                print(f"    Name: {name}")
-                print(f"    Date: {date_str}")
-                print(f"    Players: {player_count}")
-                print(f"    Top Cut: {top_cut}")
-                print(f"    Decklists: 0/{player_count} (0%)")
-                print()
-                
-            print(f"Total tournaments with no decklists: {len(tournaments_with_no_decklists)}")
-            print(f"Percentage of tournaments with no decklists: {len(tournaments_with_no_decklists)/len(detailed_tournaments):.1%}")
-        else:
-            print("All tournaments have at least one decklist!")
+        if len(tournaments) > 3:
+            print(f"     ... and {len(tournaments) - 3} more tournaments")
             
+        print(f"\n" + "="*80)
+        print("JSON OUTPUT COMPLETE")
+        print("="*80)
+        print(f"You can now process the card names file '{cards_file}' with your Scryfall API script.")
+        print(f"The tournaments file '{tournaments_file}' contains all tournament data for database loading.")
+        
     else:
         print("No tournaments found matching the criteria.")
-
-    # # Test 1: Get recent tournaments
-    # print("1. Getting last 10 tournaments...")
-    # recent_filters = TournamentFilters(last=10, game="Magic: The Gathering", format="EDH")
-    # recent_tournaments = api.get_tournaments(recent_filters)
-    # print_tournaments(recent_tournaments)
-
-    # # Test 2: Get tournament IDs only
-    # print("2. Getting tournament IDs only...")
-    # tournament_ids = api.get_tournament_ids(recent_filters)
-    # print(f"Tournament IDs: {tournament_ids}")
-
-    # # Test 3: Filter by game and format using convenience method
-    # print("\n3. Getting Magic: The Gathering EDH tournaments...")
-    # mtg_tournaments = api.get_mtg_tournaments(
-    #     format_name="EDH", min_players=50, last_n=20
-    # )
-    # print_tournaments(mtg_tournaments)
-
-    # # Test 4: Get details for first tournament (if any found)
-    # if tournament_ids:
-    #     print(f"\n4. Getting details for tournament: {tournament_ids[0]}")
-    #     details = api.get_tournament_details(tournament_ids[0])
-    #     print_tournament_details(details)
-
-    # # Test 5: Demonstrate error handling
-    # print("\n5. Testing error handling with invalid tournament ID...")
-    # try:
-    #     invalid_details = api.get_tournament_details("invalid_id_12345")
-    #     if not invalid_details:
-    #         print("Correctly handled invalid tournament ID")
-    # except ValueError as e:
-    #     print(f"Caught expected error: {e}")
-
-    # # Test 6: Demonstrate rate limiting features
-    # demonstrate_rate_limiting(api)
-    
-    # # Test 7: Bulk tournament analysis
-    # bulk_tournament_analysis(api, "EDH")
 
 
 if __name__ == "__main__":
