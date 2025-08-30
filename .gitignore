@@ -1,6 +1,9 @@
 # build output
 dist/
 
+# db files
+mtg_tournament_data.db
+
 # generated types
 .astro/
 
