@@ -112,7 +112,7 @@ export default function MtgCard ({ card, index }: MtgCardProps): React.JSX.Eleme
   return (
     <div
       key={index}
-      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 overflow-hidden ${cardBorderClass(card)}`}
+      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-hidden ${cardBorderClass(card)}`}
       style={{
         ...cardBorderStyle(card),
         /* keep a little breathing room on tiny screens by reducing interior padding */
