@@ -65,7 +65,7 @@ export default function MtgCard({ card, index }: MtgCardProps): React.JSX.Elemen
   return (
     <div
       key={index}
-      className="relative aspect-[63/88] w-full max-w-sm mx-auto rounded-[1.25rem] bg-neutral-900 shadow-2xl border border-neutral-700 overflow-hidden"
+      className="relative aspect-[63/88] w-full max-w-sm mx-auto rounded-[1.25rem] bg-neutral-900 shadow-2xl border border-neutral-700 overflow-hidden pb-1"
       style={{
         // little inner bevel to mimic a frame
         boxShadow:
@@ -73,7 +73,7 @@ export default function MtgCard({ card, index }: MtgCardProps): React.JSX.Elemen
       }}
     >
       {/* Inner frame */}
-      <div className="absolute inset-0 m-2 rounded-[1rem] overflow-hidden">
+      <div className="absolute inset-0 rounded-[1rem] overflow-hidden">
         {/* Top bar: Name (left), Mana Cost (right) */}
         <div className="flex items-start justify-between gap-2 px-3 pt-2 pb-1  to-transparent">
           <h3 className="text-base sm:text-lg font-semibold text-neutral-100 leading-tight truncate">
