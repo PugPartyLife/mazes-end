@@ -71,7 +71,7 @@ function CommanderPeek({
   tilt,
   onOpen,
   className,
-  maskRatio = 0.78, // visible portion of the card height (78%)
+  maskRatio = 0.78, // how much of the height remains visible (0..1)
 }: {
   card: any;
   width: number;
@@ -81,30 +81,33 @@ function CommanderPeek({
   className?: string;
   maskRatio?: number;
 }) {
-  const cutoff = Math.max(0, Math.min(100, Math.round(maskRatio * 100)));
   return (
-    <button
-      type="button"
-      className={`relative ${className ?? ""}`}
-      style={{ width, height }}
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${card?.name ?? 'card'}`}
       onClick={() => onOpen(card)}
-      aria-label={`Open ${card?.name ?? "card"}`}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen(card)}
+      className={`relative ${className ?? ''}`}
+      style={{ width, height }}
     >
       <div
-        className="absolute inset-0 overflow-hidden rounded-[1rem] shadow-xl ring-1 ring-black/30 bg-transparent"
+        className="absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent"
         style={{
           transform: `rotate(${tilt}deg)`,
-          WebkitMaskImage: `linear-gradient(180deg, #000 ${cutoff}%, rgba(0,0,0,0) 100%)`,
-          maskImage: `linear-gradient(180deg, black ${cutoff}%, transparent 100%)`,
+          // show only the top portion of the real card; fade at the bottom
+          WebkitMaskImage: `linear-gradient(180deg, #000 ${maskRatio * 100}%, rgba(0,0,0,0) 100%)`,
+          maskImage: `linear-gradient(180deg, black ${maskRatio * 100}%, transparent 100%)`,
         }}
       >
         <div className="w-full">
           <MtgCard card={card} />
         </div>
       </div>
-    </button>
+    </div>
   );
 }
+
 
 const DeckBox: React.FC<DeckBoxProps> = ({
   name,
