@@ -7,7 +7,6 @@ Usage:
     python scryfall_api.py --input card_names.json --output cards_data.json
     python scryfall_api.py --cards "Lightning Bolt,Counterspell,Sol Ring" 
     python scryfall_api.py --db-path cards.db --input card_names.json
-    python scryfall_api.py --bulk-download  # Download complete Scryfall dataset
 """
 
 import requests
@@ -17,7 +16,7 @@ import time
 import argparse
 import sys
 import os
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import logging
 from threading import Lock
@@ -29,17 +28,11 @@ class OptimizedScryfallAPI:
     - Uses collection endpoint for bulk requests (75 cards per request)
     - Implements proper rate limiting (10 req/sec max)
     - Includes required headers
-    - Fallback to individual requests for failed lookups
+    - Multi-round retry with Unicode variant handling
     """
     
     def __init__(self, user_agent: str = "MTGTournamentAnalyzer/1.0", db_path: Optional[str] = None):
-        """
-        Initialize the optimized Scryfall API client
-        
-        Args:
-            user_agent: Custom User-Agent header as required by Scryfall API
-            db_path: Optional SQLite database path for storing results
-        """
+        """Initialize the optimized Scryfall API client"""
         self.db_path = db_path
         self.base_url = "https://api.scryfall.com"
         
@@ -149,9 +142,59 @@ class OptimizedScryfallAPI:
         
         return found_cards, not_found_names
     
+    def _generate_name_variants(self, card_name: str) -> List[str]:
+        """Generate multiple variants of a card name to try with Scryfall API."""
+        variants = [card_name]  # Start with original
+        
+        # Add cleaned version (readable for DB)
+        clean_name = self._clean_card_name_for_storage(card_name)
+        if clean_name != card_name:
+            variants.append(clean_name)
+        
+        # Try with different apostrophe variants for API queries
+        apostrophe_variants = [
+            card_name.replace("'", "\u2019"),  # Right single quotation mark
+            card_name.replace("'", "\u2018"),  # Left single quotation mark  
+            card_name.replace("'", "\u00B4"),  # Acute accent
+            card_name.replace("'", "\u02BC"),  # Modifier letter apostrophe
+        ]
+        
+        # Try with different dash variants
+        dash_variants = [
+            card_name.replace("-", "\u2013"),  # En dash
+            card_name.replace("-", "\u2014"),  # Em dash
+        ]
+        
+        # Try without apostrophes entirely (for possessive names)
+        no_apostrophe = card_name.replace("'", "").replace("'", "")
+        if no_apostrophe != card_name:
+            variants.append(no_apostrophe)
+        
+        # Add unique variants only
+        all_variants = variants + apostrophe_variants + dash_variants
+        return list(dict.fromkeys(all_variants))  # Remove duplicates while preserving order
+    
+    def _clean_card_name_for_storage(self, card_name: str) -> str:
+        """Clean card name for readable storage in database."""
+        # Convert all apostrophe variants to standard apostrophe
+        name = card_name.replace('\u2019', "'")  # Right single quotation mark
+        name = name.replace('\u2018', "'")       # Left single quotation mark
+        name = name.replace('\u00B4', "'")       # Acute accent
+        name = name.replace('\u02BC', "'")       # Modifier letter apostrophe
+        name = name.replace('\u00e2\u20ac\u2122', "'")  # Malformed UTF-8
+        
+        # Convert dash variants to standard dash
+        name = name.replace('\u2013', "-")       # En dash
+        name = name.replace('\u2014', "-")       # Em dash
+        
+        # Remove extra whitespace
+        name = ' '.join(name.split())
+        
+        return name.strip()
+
     def fetch_card_individual(self, card_name: str) -> Optional[Dict]:
         """
-        Fetch a single card using fuzzy name matching (fallback for failed bulk requests)
+        Fetch a single card using fuzzy name matching with multiple name variants
         
         Args:
             card_name: Name of the card to fetch
@@ -159,24 +202,39 @@ class OptimizedScryfallAPI:
         Returns:
             Card data dictionary or None if not found
         """
-        url = f"{self.base_url}/cards/named"
-        params = {'fuzzy': card_name.strip()}
+        variants = self._generate_name_variants(card_name)
         
-        self.logger.debug(f"Individual request for: {card_name}")
+        self.logger.debug(f"Trying {len(variants)} variants for: {card_name}")
         
-        result = self._make_request('GET', url, params=params)
+        for i, variant in enumerate(variants):
+            url = f"{self.base_url}/cards/named"
+            params = {'fuzzy': variant.strip()}
+            
+            self.logger.debug(f"  Variant {i+1}: '{variant}'")
+            
+            result = self._make_request('GET', url, params=params)
+            
+            if result:
+                self.individual_requests_made += 1
+                self.cards_found += 1
+                
+                # Always store the clean, readable name in the result
+                clean_name = self._clean_card_name_for_storage(card_name)
+                result['name'] = clean_name  # Override with clean version
+                
+                self.logger.debug(f"  Success with variant {i+1}")
+                return result
+            
+            # Small delay between variant attempts
+            time.sleep(0.02)
         
-        if result:
-            self.individual_requests_made += 1
-            self.cards_found += 1
-            return result
-        else:
-            self.cards_not_found += 1
-            return None
+        self.cards_not_found += 1
+        self.logger.debug(f"  All variants failed for: {card_name}")
+        return None
     
     def fetch_all_cards_optimized(self, card_names: List[str]) -> List[Dict]:
         """
-        Optimally fetch all cards using bulk requests with individual fallbacks
+        Optimally fetch all cards using multi-round retry strategy with intelligent batching
         
         Args:
             card_names: List of all card names to fetch
@@ -186,42 +244,102 @@ class OptimizedScryfallAPI:
         """
         all_cards = []
         total_cards = len(card_names)
-        processed = 0
+        remaining_names = card_names.copy()
         
-        self.logger.info(f"Starting optimized fetch for {total_cards} cards...")
+        self.logger.info(f"Starting optimized fetch for {total_cards} cards with multi-round retry...")
         
-        # Process in chunks of 75 (Scryfall's bulk limit)
-        chunk_size = 75
-        
-        for i in range(0, len(card_names), chunk_size):
-            chunk = card_names[i:i + chunk_size]
-            chunk_num = (i // chunk_size) + 1
-            total_chunks = (len(card_names) + chunk_size - 1) // chunk_size
-            
-            self.logger.info(f"Processing chunk {chunk_num}/{total_chunks} ({len(chunk)} cards)...")
-            
-            # Try bulk request first
-            found_cards, not_found_names = self.fetch_cards_bulk(chunk)
-            all_cards.extend(found_cards)
-            processed += len(found_cards)
-            
-            # Fallback to individual requests for cards not found in bulk
-            if not_found_names:
-                self.logger.info(f"Retrying {len(not_found_names)} cards individually...")
+        # Round 1-3: Bulk requests with batching
+        for round_num in range(1, 4):
+            if not remaining_names:
+                break
                 
-                for card_name in not_found_names:
-                    individual_result = self.fetch_card_individual(card_name)
-                    if individual_result:
-                        all_cards.append(individual_result)
-                        processed += 1
-                    
-                    # Small delay between individual requests
-                    time.sleep(0.05)
+            self.logger.info(f"Round {round_num}: Processing {len(remaining_names)} cards in bulk...")
+            
+            chunk_size = 75
+            found_this_round = []
+            still_not_found = []
+            
+            # Process in chunks of 75 (Scryfall's bulk limit)
+            for i in range(0, len(remaining_names), chunk_size):
+                chunk = remaining_names[i:i + chunk_size]
+                chunk_num = (i // chunk_size) + 1
+                total_chunks = (len(remaining_names) + chunk_size - 1) // chunk_size
+                
+                self.logger.info(f"  Chunk {chunk_num}/{total_chunks} ({len(chunk)} cards)...")
+                
+                # Try bulk request
+                found_cards, not_found_names = self.fetch_cards_bulk(chunk)
+                found_this_round.extend(found_cards)
+                still_not_found.extend(not_found_names)
+                
+                # Small delay between chunks
+                time.sleep(0.1)
+            
+            all_cards.extend(found_this_round)
+            remaining_names = still_not_found
+            
+            self.logger.info(f"Round {round_num} complete: {len(found_this_round)} found, {len(remaining_names)} remaining")
+            
+            # If we didn't find many new cards this round, break early
+            if len(found_this_round) < 5 and round_num > 1:
+                self.logger.info(f"Low success rate in round {round_num}, moving to individual requests")
+                break
         
-        self.logger.info(f"Fetch complete: {processed}/{total_cards} cards found")
+        # Final round: Individual fuzzy matching for remaining cards
+        if remaining_names:
+            self.logger.info(f"Final round: Individual fuzzy matching for {len(remaining_names)} cards...")
+            
+            found_individual = []
+            final_not_found = []
+            
+            for i, card_name in enumerate(remaining_names, 1):
+                if i % 10 == 0:
+                    self.logger.info(f"  Individual requests: {i}/{len(remaining_names)}")
+                
+                individual_result = self.fetch_card_individual(card_name)
+                if individual_result:
+                    found_individual.append(individual_result)
+                else:
+                    final_not_found.append(card_name)
+                
+                # Rate limiting for individual requests
+                time.sleep(0.05)
+            
+            all_cards.extend(found_individual)
+            self.logger.info(f"Individual requests complete: {len(found_individual)} found, {len(final_not_found)} permanently not found")
+            
+            # Store missing cards for later review
+            if final_not_found:
+                self._save_missing_cards(final_not_found)
+        
+        processed = len(all_cards)
+        self.logger.info(f"Multi-round fetch complete: {processed}/{total_cards} cards found")
         self._print_statistics()
         
         return all_cards
+    
+    def _save_missing_cards(self, missing_cards: List[str]) -> None:
+        """Save missing card names to a JSON file for review."""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"missing_cards_{timestamp}.json"
+        
+        missing_data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "total_missing": len(missing_cards),
+                "description": "Cards that could not be found in Scryfall after all retry attempts"
+            },
+            "missing_cards": sorted(missing_cards)
+        }
+        
+        try:
+            with open(filename, 'w', encoding='utf-8') as f:
+                json.dump(missing_data, f, indent=2, ensure_ascii=False)
+            
+            print(f"Missing cards saved to: {filename}")
+            
+        except Exception as e:
+            self.logger.error(f"Error saving missing cards file: {e}")
     
     def _print_statistics(self):
         """Print API usage statistics"""
@@ -231,7 +349,33 @@ class OptimizedScryfallAPI:
         print(f"  Individual requests: {self.individual_requests_made}")
         print(f"  Cards found: {self.cards_found}")
         print(f"  Cards not found: {self.cards_not_found}")
-        print(f"  Success rate: {self.cards_found/(self.cards_found + self.cards_not_found)*100:.1f}%")
+        if (self.cards_found + self.cards_not_found) > 0:
+            print(f"  Success rate: {self.cards_found/(self.cards_found + self.cards_not_found)*100:.1f}%")
+    
+    def _determine_card_type(self, type_line: str) -> str:
+        """Determine primary card type from type line."""
+        type_lower = type_line.lower()
+        
+        if 'legendary' in type_lower and 'creature' in type_lower:
+            return 'Commander'
+        elif 'battle' in type_lower:
+            return 'Battle'
+        elif 'planeswalker' in type_lower:
+            return 'Planeswalker'
+        elif 'creature' in type_lower:
+            return 'Creature'
+        elif 'sorcery' in type_lower:
+            return 'Sorcery'
+        elif 'instant' in type_lower:
+            return 'Instant'
+        elif 'artifact' in type_lower:
+            return 'Artifact'
+        elif 'enchantment' in type_lower:
+            return 'Enchantment'
+        elif 'land' in type_lower:
+            return 'Land'
+        else:
+            return 'Unknown'
     
     def parse_card_data(self, card_data: Dict) -> Dict:
         """Parse Scryfall card data into standardized format"""
@@ -253,9 +397,6 @@ class OptimizedScryfallAPI:
             power = card_data.get('power')
             toughness = card_data.get('toughness')
             flavor_text = card_data.get('flavor_text', '')
-        
-        # Determine card type booleans
-        type_lower = type_line.lower()
         
         return {
             'card_name': card_data['name'],
@@ -290,24 +431,17 @@ class OptimizedScryfallAPI:
             'rulings_uri': card_data.get('rulings_uri'),
             'prints_search_uri': card_data.get('prints_search_uri'),
             
-            # Card type flags
-            'is_commander': 'legendary' in type_lower and 'creature' in type_lower,
-            'is_basic_land': 'Basic Land' in card_data.get('type_line', ''),
-            'is_artifact': 'artifact' in type_lower,
-            'is_creature': 'creature' in type_lower,
-            'is_instant': 'instant' in type_lower,
-            'is_sorcery': 'sorcery' in type_lower,
-            'is_enchantment': 'enchantment' in type_lower,
-            'is_planeswalker': 'planeswalker' in type_lower,
-            
-            # Price information
-            'price_usd': self._get_usd_price(card_data),
-            'price_updated': now,
-            
             # Set information
             'set_code': card_data.get('set'),
             'set_name': card_data.get('set_name'),
             'collector_number': card_data.get('collector_number'),
+            
+            # Normalized card type
+            'card_type': self._determine_card_type(type_line),
+            
+            # Price information
+            'price_usd': self._get_usd_price(card_data),
+            'price_updated': now,
             
             # Timestamps
             'first_seen': now,
@@ -435,11 +569,11 @@ class OptimizedScryfallAPI:
                     INSERT OR REPLACE INTO cards (
                         card_name, scryfall_id, mana_cost, cmc, type_line, oracle_text,
                         power, toughness, colors, color_identity, component, rarity, 
-                        flavor_text, image_small, scryfall_uri, is_commander, is_basic_land, 
-                        is_artifact, is_creature, is_instant, is_sorcery, is_enchantment, 
-                        is_planeswalker, price_usd, price_updated, set_code, set_name, 
-                        collector_number, first_seen, last_updated
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        flavor_text, artist, image_uris, layout, card_faces, scryfall_uri, uri,
+                        rulings_uri, prints_search_uri, set_code, set_name, 
+                        collector_number, card_type, price_usd, price_updated, 
+                        first_seen, last_updated
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
                     
                     conn.execute(sql, (
@@ -447,13 +581,12 @@ class OptimizedScryfallAPI:
                         card['cmc'], card['type_line'], card['oracle_text'],
                         card['power'], card['toughness'], card['colors'], 
                         card['color_identity'], card['component'], card['rarity'],
-                        card['flavor_text'], card['image_small'], card['scryfall_uri'],
-                        card['is_commander'], card['is_basic_land'], card['is_artifact'],
-                        card['is_creature'], card['is_instant'], card['is_sorcery'],
-                        card['is_enchantment'], card['is_planeswalker'],
-                        card['price_usd'], card['price_updated'], card['set_code'],
-                        card['set_name'], card['collector_number'], 
-                        card['first_seen'], card['last_updated']
+                        card['flavor_text'], card['artist'], json.dumps(card['image_uris']), 
+                        card['layout'], json.dumps(card['card_faces']),
+                        card['scryfall_uri'], card['uri'], card['rulings_uri'],
+                        card['prints_search_uri'], card['set_code'], card['set_name'],
+                        card['collector_number'], card['card_type'], card['price_usd'], 
+                        card['price_updated'], card['first_seen'], card['last_updated']
                     ))
                 
                 conn.commit()

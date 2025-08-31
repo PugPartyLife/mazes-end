@@ -1,8 +1,31 @@
--- MTG Tournament Data Schema - Updated Cards Table for Enhanced Scryfall Data
+-- MTG Tournament Data Schema - Simplified Card Types
 -- Focus: Clean tournament storage -> TopCommanders/TopCards via decklist parsing
 
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = WAL;
+
+-- Simple card types table
+CREATE TABLE IF NOT EXISTS card_types (
+    type_name TEXT PRIMARY KEY,
+    type_plural TEXT NOT NULL,
+    description TEXT -- Rules description if available
+);
+
+-- Pre-populate with basic card types
+INSERT OR IGNORE INTO card_types (type_name, type_plural, description) VALUES
+('Commander', 'Commanders', 'Legendary creatures that can be commanders'),
+('Battle', 'Battles', NULL),
+('Planeswalker', 'Planeswalkers', NULL),
+('Creature', 'Creatures', NULL),
+('Sorcery', 'Sorceries', NULL),
+('Instant', 'Instants', NULL),
+('Artifact', 'Artifacts', NULL),
+('Enchantment', 'Enchantments', NULL),
+('Land', 'Lands', NULL),
+('Token', 'Tokens', 'Tokens created by other cards'),
+('Unknown', 'Unknown', NULL);
+
+CREATE INDEX IF NOT EXISTS idx_card_types_name ON card_types(type_name);
 
 -- Raw tournament data from TopDeck API
 CREATE TABLE IF NOT EXISTS tournaments (
@@ -39,7 +62,6 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE INDEX IF NOT EXISTS idx_players_name ON players(player_name);
 
 -- Individual deck entries (one per tournament participation)
--- Now stores the raw decklist string for later parsing
 CREATE TABLE IF NOT EXISTS decks (
     deck_id TEXT PRIMARY KEY,
     tournament_id TEXT NOT NULL,
@@ -79,33 +101,33 @@ CREATE INDEX IF NOT EXISTS idx_decks_win_rate ON decks(win_rate);
 CREATE INDEX IF NOT EXISTS idx_decks_has_decklist ON decks(has_decklist);
 CREATE INDEX IF NOT EXISTS idx_decks_parsed ON decks(decklist_parsed);
 
--- Enhanced cards table - matches all fields from enhanced Scryfall API
+-- Enhanced cards table - simplified card type system
 CREATE TABLE IF NOT EXISTS cards (
-    card_name TEXT PRIMARY KEY, -- Canonical card name
-    scryfall_id TEXT UNIQUE, -- Scryfall's unique ID
+    card_name TEXT PRIMARY KEY,
+    scryfall_id TEXT UNIQUE,
     
     -- Core card data
     mana_cost TEXT,
-    cmc INTEGER, -- Converted mana cost
-    type_line TEXT, -- "Legendary Creature — Human Wizard"
+    cmc INTEGER,
+    type_line TEXT,
     oracle_text TEXT,
     power TEXT,
     toughness TEXT,
     
-    -- Color information (stored as JSON)
-    colors TEXT, -- Actual colors in mana cost (JSON array like ["W","U"])
-    color_identity TEXT, -- Color identity including abilities (JSON array)
+    -- Color information (JSON)
+    colors TEXT,
+    color_identity TEXT,
     
     -- Multi-face card support
-    layout TEXT, -- transform, modal_dfc, split, etc.
-    card_faces TEXT, -- JSON array of face data for multi-face cards
+    layout TEXT,
+    card_faces TEXT,
     
-    -- Visual assets (all image URLs stored as JSON)
-    image_uris TEXT, -- JSON object with all image sizes and face images
+    -- Images (JSON)
+    image_uris TEXT,
     
     -- Additional metadata
-    component TEXT, -- token, meld_part, etc.
-    rarity TEXT, -- common, uncommon, rare, mythic
+    component TEXT,
+    rarity TEXT,
     flavor_text TEXT,
     artist TEXT,
     
@@ -115,44 +137,35 @@ CREATE TABLE IF NOT EXISTS cards (
     collector_number TEXT,
     
     -- Scryfall URIs
-    scryfall_uri TEXT, -- Link to card page on Scryfall
-    uri TEXT, -- Link to this card object in Scryfall API
-    rulings_uri TEXT, -- Link to card's rulings
-    prints_search_uri TEXT, -- Link to search all prints/reprints
+    scryfall_uri TEXT,
+    uri TEXT,
+    rulings_uri TEXT,
+    prints_search_uri TEXT,
     
-    -- Card categorization for analysis
-    is_commander BOOLEAN DEFAULT 0,
-    is_basic_land BOOLEAN DEFAULT 0,
-    is_artifact BOOLEAN DEFAULT 0,
-    is_creature BOOLEAN DEFAULT 0,
-    is_instant BOOLEAN DEFAULT 0,
-    is_sorcery BOOLEAN DEFAULT 0,
-    is_enchantment BOOLEAN DEFAULT 0,
-    is_planeswalker BOOLEAN DEFAULT 0,
+    -- Simple card type reference
+    card_type TEXT DEFAULT 'Unknown',
     
-    -- Price and availability (can be updated periodically)
+    -- Price and metadata
     price_usd REAL,
     price_updated DATETIME,
-    
-    -- Metadata
     first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (card_type) REFERENCES card_types(type_name)
 );
 
 -- Enhanced indexes for cards table
 CREATE INDEX IF NOT EXISTS idx_cards_scryfall_id ON cards(scryfall_id);
-CREATE INDEX IF NOT EXISTS idx_cards_type ON cards(type_line);
+CREATE INDEX IF NOT EXISTS idx_cards_type_line ON cards(type_line);
+CREATE INDEX IF NOT EXISTS idx_cards_card_type ON cards(card_type);
 CREATE INDEX IF NOT EXISTS idx_cards_colors ON cards(colors);
 CREATE INDEX IF NOT EXISTS idx_cards_cmc ON cards(cmc);
-CREATE INDEX IF NOT EXISTS idx_cards_is_commander ON cards(is_commander);
 CREATE INDEX IF NOT EXISTS idx_cards_layout ON cards(layout);
 CREATE INDEX IF NOT EXISTS idx_cards_rarity ON cards(rarity);
 CREATE INDEX IF NOT EXISTS idx_cards_set_code ON cards(set_code);
 CREATE INDEX IF NOT EXISTS idx_cards_artist ON cards(artist);
 
 -- Junction table for deck compositions
--- This replaces the massive card_entries table with a much smaller one
--- Only stores the relationship between decks and cards with quantities
 CREATE TABLE IF NOT EXISTS deck_cards (
     deck_id TEXT NOT NULL,
     card_name TEXT NOT NULL,
@@ -168,7 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_deck_cards_deck ON deck_cards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_deck_cards_card ON deck_cards(card_name);
 CREATE INDEX IF NOT EXISTS idx_deck_cards_section ON deck_cards(deck_section);
 
--- Survey responses for commander recommendations (unchanged)
+-- Survey responses for commander recommendations
 CREATE TABLE IF NOT EXISTS player_surveys (
     survey_id TEXT PRIMARY KEY,
     player_id TEXT,
@@ -202,16 +215,16 @@ CREATE TABLE IF NOT EXISTS player_surveys (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Simple archetype tags for commanders (unchanged)
+-- Simple archetype tags for commanders
 CREATE TABLE IF NOT EXISTS commander_archetypes (
     commander_name TEXT,
     archetype_tag TEXT,
-    confidence_score REAL DEFAULT 1.0, -- How confident we are in this tag
+    confidence_score REAL DEFAULT 1.0,
     
     PRIMARY KEY (commander_name, archetype_tag)
 );
 
--- Updated view for TopCommanders analysis (now uses deck data directly)
+-- View for TopCommanders analysis
 CREATE VIEW IF NOT EXISTS top_commanders AS
 SELECT 
     commander_1 as commander_name,
@@ -236,11 +249,11 @@ SELECT
     
 FROM decks 
 WHERE commander_1 IS NOT NULL 
-  AND has_decklist = 1  -- Only include decks with actual decklists
+  AND has_decklist = 1
 GROUP BY commander_1, commander_2
 HAVING total_decks >= 5;
 
--- Updated view for TopCards analysis (now uses the normalized structure)
+-- View for TopCards analysis with simplified card type info
 CREATE VIEW IF NOT EXISTS top_cards_for_commanders AS
 SELECT 
     d.commander_1 as commander_name,
@@ -250,6 +263,10 @@ SELECT
     c.colors,
     c.rarity,
     c.price_usd,
+    
+    -- Card type information
+    c.card_type,
+    ct.type_plural as card_type_plural,
     
     -- Inclusion metrics
     COUNT(*) as total_inclusions,
@@ -278,14 +295,15 @@ SELECT
 FROM deck_cards dc
 JOIN decks d ON dc.deck_id = d.deck_id
 JOIN cards c ON dc.card_name = c.card_name
+JOIN card_types ct ON c.card_type = ct.type_name
 WHERE d.commander_1 IS NOT NULL 
   AND d.has_decklist = 1
-  AND dc.deck_section != 'commander'  -- Exclude commanders from card analysis
+  AND dc.deck_section != 'commander'
 GROUP BY d.commander_1, dc.card_name, dc.deck_section
 HAVING total_inclusions >= 3
 ORDER BY d.commander_1, inclusion_rate DESC;
 
--- Updated commander recommendations view
+-- Commander recommendations view
 CREATE VIEW IF NOT EXISTS commander_recommendations AS
 SELECT 
     tc.commander_name,
@@ -303,6 +321,7 @@ SELECT
     c.oracle_text as commander_ability,
     c.image_uris as commander_images,
     c.scryfall_uri as commander_url,
+    c.card_type as commander_card_type,
     
     -- Archetype tags
     GROUP_CONCAT(ca.archetype_tag) as archetype_tags,
@@ -317,7 +336,7 @@ SELECT
         WHERE d2.commander_1 = tc.commander_name
           AND c2.price_usd IS NOT NULL
         GROUP BY dc2.deck_id
-        LIMIT 10  -- Last 10 decks
+        LIMIT 10
     )) as estimated_deck_price
     
 FROM top_commanders tc
@@ -325,7 +344,7 @@ LEFT JOIN cards c ON tc.commander_name = c.card_name
 LEFT JOIN commander_archetypes ca ON tc.commander_name = ca.commander_name
 GROUP BY tc.commander_name, tc.partner_name;
 
--- Pre-populate some obvious archetypes (unchanged)
+-- Pre-populate some obvious archetypes
 INSERT OR IGNORE INTO commander_archetypes VALUES
 ('Krenko, Mob Boss', 'Kindred', 1.0),
 ('Krenko, Mob Boss', 'Aggro', 0.9),
