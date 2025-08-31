@@ -1,0 +1,22 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation.jsx";
+import Footer from "../components/Footer.jsx";
+import DeckBox from "../components/DeckBox";
+import { demoDeckBoxData } from "../data/demoDeckBox";
+---
+
+<Layout title="The Maze's End - Decks">
+  <div class="min-h-screen bg-gray-900 p-16">
+    <Navigation client:load />
+    <div class="pt-20">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+      >
+      <DeckBox client:load {...demoDeckBoxData} onOpenCard={(c) => console.log(c?.name)} />
+
+      </div>
+    </div>
+    <Footer client:load />
+  </div>
+</Layout>

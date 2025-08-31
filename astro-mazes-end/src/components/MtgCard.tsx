@@ -168,11 +168,11 @@ export default function MtgCard ({ card, index }: MtgCardProps): React.JSX.Eleme
               <CardStats
                 size={88}
                 values={{
-                  power: Math.floor(Math.random() * 10) + 1,
-                  cost: Math.floor(Math.random() * 10) + 1,
-                  popularity: Math.floor(Math.random() * 10) + 1,
-                  difficulty: Math.floor(Math.random() * 10) + 1,
-                  salt: Math.floor(Math.random() * 10) + 1
+                  power: 7,
+                  cost: 6,
+                  popularity: 6,
+                  difficulty: 8,
+                  salt: 5
                 }}
                 max={10}
                 rings={4}
