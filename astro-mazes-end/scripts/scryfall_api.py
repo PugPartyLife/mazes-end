@@ -605,9 +605,19 @@ class OptimizedScryfallAPI:
             if 'card_names' in data:
                 # Format from tournament data pipeline
                 return data['card_names']
-            elif isinstance(data, list):
+            elif isinstance(data, list):  # this is what we are doing atm it accepts other data structures from topdeck basically
                 # Simple list of card names
-                return data
+                clean_data = []
+                filters = ["http://", "https://", "www.", "moxfield"]
+                for card in data:
+                    card = card.strip()
+                    if card.startswith('[') or card.startswith('{') or any(f in card for f in filters) or len(card) < 2:
+                        # self.logger.error(f"Invalid card name entry in list: {card}")
+                        self.logger.debug(f"Invalid card name entry in list: {card}")
+                        continue
+                    clean_data.append(card)
+                self.logger.info(f"cleaned {len(clean_data)} card names from list. total entries: {len(data)}")
+                return clean_data
             elif 'cards' in data:
                 # Existing card data format
                 return [card.get('name', card.get('card_name', '')) for card in data['cards']]
