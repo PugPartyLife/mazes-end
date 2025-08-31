@@ -9,10 +9,10 @@ interface Stat {
 
 const WORDS = ['1. Learn', '2. Study', '3. Practice', '4. Win'] as const;
 const STATS: Stat[] = [
-  { number: '42', label: 'Commanders' },
-  { number: '42', label: 'Cards' },
-  { number: '42', label: 'Decks' },
-  { number: '42', label: 'Tournaments' },
+  { number: '1091', label: 'Commanders' },
+  { number: '9786', label: 'Unique Cards' },
+  { number: '11135', label: 'Decks' },
+  { number: '162', label: 'Tournaments' },
 ];
 
 export default function Banner() {

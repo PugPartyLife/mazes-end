@@ -1,4 +1,4 @@
--- MTG Tournament Data Schema - Refactored for Efficiency
+-- MTG Tournament Data Schema - Updated Cards Table for Enhanced Scryfall Data
 -- Focus: Clean tournament storage -> TopCommanders/TopCards via decklist parsing
 
 PRAGMA foreign_keys = ON;
@@ -79,12 +79,12 @@ CREATE INDEX IF NOT EXISTS idx_decks_win_rate ON decks(win_rate);
 CREATE INDEX IF NOT EXISTS idx_decks_has_decklist ON decks(has_decklist);
 CREATE INDEX IF NOT EXISTS idx_decks_parsed ON decks(decklist_parsed);
 
--- Master cards table - one row per unique card
--- This will be populated as we parse decklists
+-- Enhanced cards table - matches all fields from enhanced Scryfall API
 CREATE TABLE IF NOT EXISTS cards (
     card_name TEXT PRIMARY KEY, -- Canonical card name
+    scryfall_id TEXT UNIQUE, -- Scryfall's unique ID
     
-    -- Card metadata (can be populated from Scryfall API or similar)
+    -- Core card data
     mana_cost TEXT,
     cmc INTEGER, -- Converted mana cost
     type_line TEXT, -- "Legendary Creature — Human Wizard"
@@ -92,9 +92,33 @@ CREATE TABLE IF NOT EXISTS cards (
     power TEXT,
     toughness TEXT,
     
-    -- Color information
+    -- Color information (stored as JSON)
     colors TEXT, -- Actual colors in mana cost (JSON array like ["W","U"])
     color_identity TEXT, -- Color identity including abilities (JSON array)
+    
+    -- Multi-face card support
+    layout TEXT, -- transform, modal_dfc, split, etc.
+    card_faces TEXT, -- JSON array of face data for multi-face cards
+    
+    -- Visual assets (all image URLs stored as JSON)
+    image_uris TEXT, -- JSON object with all image sizes and face images
+    
+    -- Additional metadata
+    component TEXT, -- token, meld_part, etc.
+    rarity TEXT, -- common, uncommon, rare, mythic
+    flavor_text TEXT,
+    artist TEXT,
+    
+    -- Set information  
+    set_code TEXT,
+    set_name TEXT,
+    collector_number TEXT,
+    
+    -- Scryfall URIs
+    scryfall_uri TEXT, -- Link to card page on Scryfall
+    uri TEXT, -- Link to this card object in Scryfall API
+    rulings_uri TEXT, -- Link to card's rulings
+    prints_search_uri TEXT, -- Link to search all prints/reprints
     
     -- Card categorization for analysis
     is_commander BOOLEAN DEFAULT 0,
@@ -115,10 +139,16 @@ CREATE TABLE IF NOT EXISTS cards (
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Enhanced indexes for cards table
+CREATE INDEX IF NOT EXISTS idx_cards_scryfall_id ON cards(scryfall_id);
 CREATE INDEX IF NOT EXISTS idx_cards_type ON cards(type_line);
 CREATE INDEX IF NOT EXISTS idx_cards_colors ON cards(colors);
 CREATE INDEX IF NOT EXISTS idx_cards_cmc ON cards(cmc);
 CREATE INDEX IF NOT EXISTS idx_cards_is_commander ON cards(is_commander);
+CREATE INDEX IF NOT EXISTS idx_cards_layout ON cards(layout);
+CREATE INDEX IF NOT EXISTS idx_cards_rarity ON cards(rarity);
+CREATE INDEX IF NOT EXISTS idx_cards_set_code ON cards(set_code);
+CREATE INDEX IF NOT EXISTS idx_cards_artist ON cards(artist);
 
 -- Junction table for deck compositions
 -- This replaces the massive card_entries table with a much smaller one
@@ -218,6 +248,8 @@ SELECT
     c.type_line,
     c.cmc,
     c.colors,
+    c.rarity,
+    c.price_usd,
     
     -- Inclusion metrics
     COUNT(*) as total_inclusions,
@@ -235,10 +267,10 @@ SELECT
     AVG(d.win_rate) as avg_win_rate_with_card,
     AVG(CAST(d.standing AS REAL)) as avg_standing_with_card,
     
-    -- Price information
-    c.price_usd,
-    
-    -- Metadata
+    -- Enhanced metadata
+    c.artist,
+    c.set_code,
+    c.layout,
     dc.deck_section,
     MIN(d.created_at) as first_seen,
     MAX(d.created_at) as last_seen
@@ -263,16 +295,14 @@ SELECT
     tc.popularity_score,
     tc.top_8_finishes,
     
-    -- Get color identity from cards table if commander exists there
-    COALESCE(c.color_identity, 
-        CASE 
-            WHEN tc.commander_name LIKE '%Krenko%' THEN '["R"]'
-            WHEN tc.commander_name LIKE '%Edgar%' THEN '["W","B","R"]' 
-            WHEN tc.commander_name LIKE '%Atraxa%' THEN '["W","U","B","G"]'
-            WHEN tc.commander_name LIKE '%Ur-Dragon%' THEN '["W","U","B","R","G"]'
-            WHEN tc.commander_name LIKE '%Meren%' THEN '["B","G"]'
-            ELSE '["Unknown"]'
-        END) as color_identity,
+    -- Enhanced commander info from cards table
+    c.color_identity,
+    c.type_line as commander_type,
+    c.mana_cost as commander_cost,
+    c.cmc as commander_cmc,
+    c.oracle_text as commander_ability,
+    c.image_uris as commander_images,
+    c.scryfall_uri as commander_url,
     
     -- Archetype tags
     GROUP_CONCAT(ca.archetype_tag) as archetype_tags,
@@ -307,10 +337,3 @@ INSERT OR IGNORE INTO commander_archetypes VALUES
 ('The Ur-Dragon', 'Ramp', 0.8),
 ('Meren of Clan Nel Toth', 'Graveyard', 1.0),
 ('Meren of Clan Nel Toth', 'Value', 0.8);
-
--- Example of how decklist parsing would work:
--- When you get a raw decklist string from TopDeck.gg, you would:
--- 1. Parse it to extract individual cards and quantities
--- 2. INSERT OR IGNORE each unique card into the cards table
--- 3. INSERT the deck composition into deck_cards table  
--- 4. UPDATE the deck to set decklist_parsed = 1
