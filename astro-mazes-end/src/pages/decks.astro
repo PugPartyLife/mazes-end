@@ -1,22 +1,25 @@
 ---
+export const prerender = false;
+
 import Layout from "../layouts/Layout.astro";
 import Navigation from "../components/Navigation.jsx";
 import Footer from "../components/Footer.jsx";
 import DeckBox from "../components/DeckBox";
-import { demoDeckBoxData } from "../data/demoDeckBox";
+import { loadTopDeckBoxes } from "../data/demoDeckBox";
+
+const decks = await loadTopDeckBoxes(15);
 ---
 
-<Layout title="The Maze's End - Decks">
-  <div class="min-h-screen bg-gray-900 p-16">
+<Layout title="The Maze's End - cEDH Hub">
+  <div class="min-h-screen bg-gray-900 p-6 sm:p-10 lg:p-16">
     <Navigation client:load />
-    <div class="pt-20">
-      <div
-        class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
-      >
-      <DeckBox client:load {...demoDeckBoxData} onOpenCard={(c) => console.log(c?.name)} />
 
+    <div class="mx-auto max-w-7xl">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+        {decks.map((d, i) => <DeckBox client:load key={i} {...d} />)}
       </div>
     </div>
+
     <Footer client:load />
   </div>
 </Layout>

@@ -15,6 +15,10 @@ export interface CommanderData {
   deckCount: number
   avgWinRate: number
   top8Count: number
+  lastSeen: string
+  tournamentName: string
+  player: string
+  deckUrl: string
 }
 
 export function queryDatabase<T>(sql: string, params: any[] = []): Promise<T[]> {

@@ -1,5 +1,5 @@
-import SchemaBuilder from '@pothos/core';
-import DataloaderPlugin from '@pothos/plugin-dataloader';
+import SchemaBuilder from '@pothos/core'
+import DataloaderPlugin from '@pothos/plugin-dataloader'
 import { createYoga } from 'graphql-yoga'
 import { builder } from '../../lib/graphql/schema.ts'
 
@@ -31,14 +31,14 @@ const yoga = createYoga({
 })
 
 // Handle all HTTP methods through Yoga
-export async function GET(context: any) {
+export async function GET (context: any) {
   return yoga(context.request)
 }
 
-export async function POST(context: any) {
+export async function POST (context: any) {
   return yoga(context.request)
 }
 
-export async function OPTIONS(context: any) {
+export async function OPTIONS (context: any) {
   return yoga(context.request)
 }
