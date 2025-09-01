@@ -143,8 +143,16 @@ class DatabaseLoader:
                 self._insert_player(conn, player)
                 self._insert_deck(conn, deck)
                 
-                # Parse decklist if present
-                if deck.decklist_raw and deck.has_decklist:
+                # Parse deck cards from deck object if available
+                deck_obj = standing_data.get('deck') or standing_data.get('deckObj')
+                
+                if deck_obj and isinstance(deck_obj, dict):
+                    # Parse cards from deck object structure
+                    deck_cards = self._parse_deck_obj_cards(deck_obj, deck.deck_id)
+                    for deck_card in deck_cards:
+                        self._insert_deck_card(conn, deck_card)
+                elif deck.decklist_raw and deck.has_decklist and not deck.decklist_parsed:
+                    # Only parse raw decklist if we didn't get cards from deck object
                     deck_cards = self._parse_decklist(deck.decklist_raw, deck.deck_id)
                     for deck_card in deck_cards:
                         self._insert_deck_card(conn, deck_card)
@@ -154,6 +162,103 @@ class DatabaseLoader:
         except Exception as e:
             self.logger.error(f"Error loading tournament {tournament_data.get('TID', 'unknown')}: {e}")
             self.stats['errors'] += 1
+
+    def _parse_deck_obj_cards(self, deck_obj: Dict, deck_id: str) -> List[DeckCard]:
+        """Parse deck cards from deck object structure.
+        
+        Handles various deck object formats from TopDeck API.
+        """
+        deck_cards = []
+        
+        # Handle 'cards' array format
+        if 'cards' in deck_obj and isinstance(deck_obj['cards'], list):
+            for card_entry in deck_obj['cards']:
+                if isinstance(card_entry, dict):
+                    card_name = card_entry.get('name', '').strip()
+                    quantity = card_entry.get('quantity', 1)
+                    section = card_entry.get('section', 'mainboard').lower()
+                    
+                    # Map section names to our standard sections
+                    if section in ['command', 'commandzone', 'commander']:
+                        section = 'commander'
+                    elif section in ['main', 'maindeck', 'mainboard', 'deck']:
+                        section = 'mainboard'
+                    elif section in ['side', 'sideboard']:
+                        section = 'sideboard'
+                    
+                    if card_name:
+                        deck_cards.append(DeckCard(
+                            deck_id=deck_id,
+                            card_name=card_name,
+                            quantity=quantity,
+                            deck_section=section
+                        ))
+        
+        # Handle separate section format (mainboard, sideboard, etc.)
+        sections_map = {
+            'mainboard': 'mainboard',
+            'mainBoard': 'mainboard',
+            'main': 'mainboard',
+            'deck': 'mainboard',
+            'sideboard': 'sideboard',
+            'sideBoard': 'sideboard',
+            'side': 'sideboard',
+            'commander': 'commander',
+            'commanders': 'commander',
+            'commandZone': 'commander',
+            'commandzone': 'commander'
+        }
+        
+        for section_key, section_name in sections_map.items():
+            if section_key in deck_obj:
+                section_data = deck_obj[section_key]
+                
+                if isinstance(section_data, list):
+                    # List of card objects or strings
+                    for card_entry in section_data:
+                        if isinstance(card_entry, str):
+                            # Simple string format: "1 Card Name"
+                            match = re.match(r'^(\d+)\s+(.+)$', card_entry.strip())
+                            if match:
+                                quantity = int(match.group(1))
+                                card_name = match.group(2).strip()
+                            else:
+                                quantity = 1
+                                card_name = card_entry.strip()
+                        elif isinstance(card_entry, dict):
+                            card_name = card_entry.get('name', '').strip()
+                            quantity = card_entry.get('quantity', card_entry.get('count', 1))
+                        else:
+                            continue
+                        
+                        if card_name:
+                            deck_cards.append(DeckCard(
+                                deck_id=deck_id,
+                                card_name=card_name,
+                                quantity=quantity,
+                                deck_section=section_name
+                            ))
+                elif isinstance(section_data, dict):
+                    # Dictionary format with card names as keys
+                    for card_name, quantity in section_data.items():
+                        if isinstance(quantity, int) and card_name:
+                            deck_cards.append(DeckCard(
+                                deck_id=deck_id,
+                                card_name=card_name.strip(),
+                                quantity=quantity,
+                                deck_section=section_name
+                            ))
+        
+        # Log what we found
+        if deck_cards:
+            self.logger.debug(f"Parsed {len(deck_cards)} cards from deck object")
+            commander_cards = [dc for dc in deck_cards if dc.deck_section == 'commander']
+            if commander_cards:
+                self.logger.debug(f"  Commanders: {[dc.card_name for dc in commander_cards]}")
+        else:
+            self.logger.debug(f"No cards found in deck object structure")
+        
+        return deck_cards
     
     def _parse_tournament_data(self, data: Dict) -> Tournament:
         """Parse tournament data from TopDeck JSON format."""
@@ -202,8 +307,40 @@ class DatabaseLoader:
         # Generate deck_id from tournament + player
         deck_id = f"{tournament_id}_{player_id}"
         
-        # Extract commander info from decklist if available
-        commanders = self._extract_commanders_from_decklist(standing_data.get('decklist', ''))
+        # Initialize commander variables
+        commander_1 = None
+        commander_2 = None
+        deck_colors = None
+        has_decklist = False
+        decklist_parsed = False
+        
+        # Check for deck object FIRST (highest priority)
+        deck_obj = standing_data.get('deck') or standing_data.get('deckObj')
+        
+        if deck_obj:
+            # We have a deck object - extract commanders from it
+            commander_1, commander_2 = self._extract_commanders_from_deck_obj(deck_obj)
+            deck_colors = self._extract_colors_from_deck_obj(deck_obj)
+            has_decklist = True
+            decklist_parsed = True  # Mark as parsed since we got data from deckObj
+            self.logger.debug(f"Extracted from deckObj - Commander 1: {commander_1}, Commander 2: {commander_2}")
+        
+        # Only parse decklist text if we didn't get commanders from deck object
+        decklist_raw = standing_data.get('decklist', '')
+        if not commander_1 and decklist_raw and not decklist_raw.startswith('https://'):
+            # Fallback to parsing raw decklist text
+            commanders = self._extract_commanders_from_decklist(decklist_raw)
+            commander_1 = commanders[0] if commanders else None
+            commander_2 = commanders[1] if len(commanders) > 1 else None
+            has_decklist = bool(decklist_raw.strip())
+            decklist_parsed = False  # Mark for later parsing since we only did basic extraction
+            self.logger.debug(f"Extracted from decklist text - Commander 1: {commander_1}, Commander 2: {commander_2}")
+        
+        # If still no commanders but we have a decklist, mark it for later parsing
+        if not commander_1 and decklist_raw:
+            has_decklist = bool(decklist_raw.strip())
+            decklist_parsed = False
+            self.logger.debug(f"No commanders found, marking deck for later parsing")
         
         return Deck(
             deck_id=deck_id,
@@ -220,13 +357,108 @@ class DatabaseLoader:
             losses_bracket=standing_data.get('lossesBracket', 0),
             win_rate=standing_data.get('winRate', 0.0),
             byes=standing_data.get('byes', 0),
-            decklist_raw=standing_data.get('decklist'),
-            commander_1=commanders[0] if commanders else None,
-            commander_2=commanders[1] if len(commanders) > 1 else None,
-            deck_colors=self._extract_deck_colors(commanders),
-            has_decklist=bool(standing_data.get('decklist')),
-            decklist_parsed=bool(standing_data.get('decklist'))
+            decklist_raw=decklist_raw,  # Always store raw decklist for later reference
+            commander_1=commander_1,
+            commander_2=commander_2,
+            deck_colors=deck_colors or self._extract_deck_colors([c for c in [commander_1, commander_2] if c]),
+            has_decklist=has_decklist,
+            decklist_parsed=decklist_parsed
         )
+
+    def _extract_colors_from_deck_obj(self, deck_obj: Dict) -> Optional[str]:
+        """Extract deck color identity from deck object."""
+        # Check for direct color fields
+        if 'colors' in deck_obj:
+            colors = deck_obj['colors']
+            if isinstance(colors, str):
+                return colors
+            elif isinstance(colors, list):
+                # Convert list to WUBRG string
+                color_order = ['W', 'U', 'B', 'R', 'G']
+                return ''.join([c for c in color_order if c in colors])
+        
+        if 'colorIdentity' in deck_obj:
+            color_identity = deck_obj['colorIdentity']
+            if isinstance(color_identity, str):
+                return color_identity
+            elif isinstance(color_identity, list):
+                # Convert list to WUBRG string
+                color_order = ['W', 'U', 'B', 'R', 'G']
+                return ''.join([c for c in color_order if c in color_identity])
+        
+        # Check if deck object has cards with color information
+        if 'cards' in deck_obj and isinstance(deck_obj['cards'], list):
+            # This would require parsing all cards to determine color identity
+            # For now, return None and let it be determined later from commander cards
+            pass
+        
+        return None
+
+    def _extract_commanders_from_deck_obj(self, deck_obj: Dict) -> tuple[Optional[str], Optional[str]]:
+        """Extract commander names from deck object structure.
+        
+        Priority order:
+        1. commanders array
+        2. commander field
+        3. commandZone array
+        4. general field (legacy)
+        """
+        commander_1 = None
+        commander_2 = None
+        
+        # Check for 'commanders' array (most common in TopDeck)
+        if 'commanders' in deck_obj and isinstance(deck_obj['commanders'], list):
+            commanders = deck_obj['commanders']
+            if len(commanders) > 0 and commanders[0]:
+                # Handle both string and object formats
+                if isinstance(commanders[0], str):
+                    commander_1 = commanders[0].strip()
+                elif isinstance(commanders[0], dict):
+                    commander_1 = commanders[0].get('name', '').strip()
+                
+                if len(commanders) > 1 and commanders[1]:
+                    if isinstance(commanders[1], str):
+                        commander_2 = commanders[1].strip()
+                    elif isinstance(commanders[1], dict):
+                        commander_2 = commanders[1].get('name', '').strip()
+            
+            return commander_1, commander_2
+        
+        # Check for single 'commander' field
+        if 'commander' in deck_obj:
+            if isinstance(deck_obj['commander'], str):
+                commander_1 = deck_obj['commander'].strip()
+            elif isinstance(deck_obj['commander'], dict):
+                commander_1 = deck_obj['commander'].get('name', '').strip()
+            return commander_1, commander_2
+        
+        # Check for 'commandZone' array
+        if 'commandZone' in deck_obj and isinstance(deck_obj['commandZone'], list):
+            command_zone = deck_obj['commandZone']
+            if len(command_zone) > 0 and command_zone[0]:
+                if isinstance(command_zone[0], str):
+                    commander_1 = command_zone[0].strip()
+                elif isinstance(command_zone[0], dict):
+                    commander_1 = command_zone[0].get('name', '').strip()
+                
+                if len(command_zone) > 1 and command_zone[1]:
+                    if isinstance(command_zone[1], str):
+                        commander_2 = command_zone[1].strip()
+                    elif isinstance(command_zone[1], dict):
+                        commander_2 = command_zone[1].get('name', '').strip()
+            
+            return commander_1, commander_2
+        
+        # Check for legacy 'general' field
+        if 'general' in deck_obj:
+            if isinstance(deck_obj['general'], str):
+                commander_1 = deck_obj['general'].strip()
+            elif isinstance(deck_obj['general'], dict):
+                commander_1 = deck_obj['general'].get('name', '').strip()
+            return commander_1, commander_2
+        
+        # No commanders found in deck object
+        return None, None
     
     def _generate_player_id(self, player_name: str) -> str:
         """Generate consistent player ID from player name."""
@@ -599,7 +831,8 @@ class DatabaseLoader:
                     scryfall_id = ?, mana_cost = ?, cmc = ?, type_line = ?, oracle_text = ?,
                     power = ?, toughness = ?, colors = ?, color_identity = ?, layout = ?,
                     card_faces = ?, image_uris = ?, component = ?, rarity = ?, 
-                    flavor_text = ?, artist = ?, set_code = ?, set_name = ?, 
+                    flavor_text = ?, artist = ?, salt = ?, card_power = ?, 
+                    versatility = ?, popularity = ?, set_code = ?, set_name = ?, 
                     collector_number = ?, scryfall_uri = ?, uri = ?, rulings_uri = ?,
                     prints_search_uri = ?, card_type = ?, price_usd = ?, 
                     price_updated = ?, last_updated = ?
