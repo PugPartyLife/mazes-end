@@ -190,6 +190,23 @@ export interface ParsedImageUris {
   border_crop?: string
 }
 
+// Parsed card shape used by UI components (MtgCard, DeckBox commanders)
+export interface DbUICard {
+  name: string
+  mana_cost?: string
+  type_line?: string
+  oracle_text?: string
+  power?: string
+  toughness?: string
+  colors?: string[]
+  color_identity?: string[]
+  image_uris?: ParsedImageUris
+  layout?: string
+  card_faces?: any[]
+  artist?: string
+  set_name?: string
+}
+
 // Legacy interfaces for backward compatibility
 export interface CardData {
   cardName: string

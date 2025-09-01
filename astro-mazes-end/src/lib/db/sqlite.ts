@@ -1,34 +1,10 @@
 import sqlite3 from 'sqlite3'
 import type { ParsedImageUris } from '../../types'
 
-<<<<<<< HEAD
-export interface CardData {
-  cardName: string
-  totalEntries: number
-  totalDecks: number
-  avgWinRate: number
-  firstSeen: string
-  lastSeen: string
-}
-
-export interface CommanderData {
-  commander1: string
-  commander2: string | null
-  deckCount: number
-  avgWinRate: number
-  top8Count: number
-  lastSeen: string
-  tournamentName: string
-  player: string
-  deckUrl: string
-}
-
-=======
 // Database utility functions
->>>>>>> feature/data_prep
 export function queryDatabase<T>(sql: string, params: any[] = []): Promise<T[]> {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database('./mtg_tournament_data.db')
+    const db = new sqlite3.Database('./test.db')
     
     db.all(sql, params, (err, rows) => {
       if (err) reject(err)
@@ -41,7 +17,7 @@ export function queryDatabase<T>(sql: string, params: any[] = []): Promise<T[]> 
 
 export function queryDatabaseSingle<T>(sql: string, params: any[] = []): Promise<T | null> {
   return new Promise((resolve, reject) => {
-    const db = new sqlite3.Database('./mtg_tournament_data.db')
+    const db = new sqlite3.Database('./test.db')
     
     db.get(sql, params, (err, row) => {
       if (err) reject(err)

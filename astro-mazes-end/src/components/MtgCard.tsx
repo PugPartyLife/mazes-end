@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react'
 import ManaText from '../components/ManaText'
 import CardStats from '../components/CardStats'
+import type { DbUICard } from '../types'
 
 type MtgCardProps = {
-  card: any
+  card: DbUICard
   index?: number | string
 }
 
@@ -20,7 +21,7 @@ const ARTIFACT_BROWN = '#B89E72' // “old artifact” feel
 const LEGEND_GOLD = '#DAA21C'
 
 /** Prefer color identity (accounts for back side & activated abilities) */
-function identityColors (card: any): string[] {
+function identityColors (card: DbUICard): string[] {
   const fromId: string[] = Array.isArray(card?.color_identity)
     ? card.color_identity
     : []
@@ -35,7 +36,7 @@ function identityColors (card: any): string[] {
 }
 
 /** First available art image for a given face or whole card */
-function getArt (card: any, faceIdx?: number): string | undefined {
+function getArt (card: DbUICard, faceIdx?: number): string | undefined {
   const f = Array.isArray(card?.card_faces)
     ? card.card_faces[faceIdx ?? 0]
     : null
@@ -51,7 +52,7 @@ function getArt (card: any, faceIdx?: number): string | undefined {
 
 /** Read a field from the active face if applicable */
 function fromFace<T = any> (
-  card: any,
+  card: DbUICard,
   faceIdx: number | undefined,
   key: string,
   fallback: T = '' as T

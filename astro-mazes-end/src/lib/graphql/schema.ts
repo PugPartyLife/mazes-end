@@ -213,7 +213,7 @@ builder.queryType({
         
         return {
           ...results[0],
-          databasePath: './mtg_tournament_data.db',
+          databasePath: './test.db',
         }
       },
     }),

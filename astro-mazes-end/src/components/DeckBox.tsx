@@ -1,32 +1,33 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import MtgCard from './MtgCard'
+import type { DbUICard } from '../types'
 import ManaText from './ManaText'
 
 type Color = 'W' | 'U' | 'B' | 'R' | 'G'
 
 export type DeckBoxProps = {
   name: string // deck name (linked + gradient)
-  tournamentName?: string // neutral pill
-  commanders: any[] // 1–2 Scryfall cards
-  colors?: Color[] // optional explicit colors
-  player?: string
+  tournamentName: string // neutral pill (empty string to hide)
+  commanders: DbUICard[] // 1–2 cards from our DB shape
+  colors: Color[] // explicit colors (derive if empty)
+  player: string
 
-  // Optional DB-driven stats
-  wins?: number
-  losses?: number
-  draws?: number
-  avgWinRate?: number // 0–1 or 0–100, normalized below
-  top8Count?: number
-  deckCount?: number
-  lastSeen?: string
+  // DB-driven stats
+  wins: number
+  losses: number
+  draws: number
+  avgWinRate: number // 0–1 or 0–100, normalized below
+  top8Count: number
+  deckCount: number
+  lastSeen: string
 
-  cardCount?: number
-  deckUrl?: string
+  cardCount: number
+  deckUrl: string
 
-  className?: string
-  peekWidth?: number
-  peekHeight?: number
-  onOpenCard?: (card: any) => void
+  className: string
+  peekWidth: number
+  peekHeight: number
+  onOpenCard: (card: DbUICard) => void
 }
 
 const COLOR_TINT: Record<Color | 'C', string> = {
@@ -56,7 +57,7 @@ function pipsText (colors?: Color[]) {
   return colors.map(c => `{${c}}`).join('')
 }
 
-function deriveColorsFromCommanders (commanders: any[]): Color[] | undefined {
+function deriveColorsFromCommanders (commanders: DbUICard[]): Color[] | undefined {
   const set = new Set<Color>()
   for (const c of commanders || []) {
     const ids: string[] = c?.color_identity || c?.colors || []
@@ -76,11 +77,11 @@ function CommanderPeek ({
   className,
   maskRatio = 0.78 // how much of the height remains visible (0..1)
 }: {
-  card: any
+  card: DbUICard
   width: number
   height: number
   tilt: number
-  onOpen: (c: any) => void
+  onOpen: (c: DbUICard) => void
   className?: string
   maskRatio?: number
 }) {
@@ -135,7 +136,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   peekWidth = 260,
   peekHeight = 160
 }) => {
-  const [open, setOpen] = useState<any | null>(null)
+  const [open, setOpen] = useState<DbUICard | null>(null)
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const safeCommanders = Array.isArray(commanders) ? commanders.slice(0, 2) : []
@@ -166,7 +167,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   const paddingTop = peekZone + 16 // header breathing room
 
   const handleOpen = useCallback(
-    (c: any) => {
+    (c: DbUICard) => {
       setOpen(c)
       onOpenCard?.(c)
     },

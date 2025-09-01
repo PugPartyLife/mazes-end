@@ -3,8 +3,11 @@ import Layout from "../layouts/Layout.astro";
 import Navigation from "../components/Navigation.jsx";
 import Footer from "../components/Footer.jsx";
 import MtgCard from "../components/MtgCard";
-import { cards } from "../data/demoCards";
+import { loadCardsFromDb } from "../server/cards";
+const cards = await loadCardsFromDb(12);
 ---
+
+
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 p-16">
@@ -15,7 +18,7 @@ import { cards } from "../data/demoCards";
         <div class="relative aspect-[63/88] w-full max-w-sm mx-auto">
           <div class="absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent">
             <div class="w-full h-full">
-              <MtgCard client:load card={card} />
+              <MtgCard client:visible card={card} />
             </div>
           </div>
         </div>
