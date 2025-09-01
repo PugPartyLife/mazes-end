@@ -1,5 +1,7 @@
 import sqlite3 from 'sqlite3'
+import type { ParsedImageUris } from '../../types'
 
+<<<<<<< HEAD
 export interface CardData {
   cardName: string
   totalEntries: number
@@ -21,6 +23,9 @@ export interface CommanderData {
   deckUrl: string
 }
 
+=======
+// Database utility functions
+>>>>>>> feature/data_prep
 export function queryDatabase<T>(sql: string, params: any[] = []): Promise<T[]> {
   return new Promise((resolve, reject) => {
     const db = new sqlite3.Database('./mtg_tournament_data.db')
@@ -31,5 +36,88 @@ export function queryDatabase<T>(sql: string, params: any[] = []): Promise<T[]> 
     })
     
     db.close()
+  })
+}
+
+export function queryDatabaseSingle<T>(sql: string, params: any[] = []): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const db = new sqlite3.Database('./mtg_tournament_data.db')
+    
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err)
+      else resolve(row as T || null)
+    })
+    
+    db.close()
+  })
+}
+
+// Helper functions for parsing JSON fields
+export function parseColors(colorsJson: string | null): string[] {
+  if (!colorsJson) return []
+  try {
+    return JSON.parse(colorsJson)
+  } catch {
+    return []
+  }
+}
+
+export function parseImageUris(imageUrisJson: string | null): ParsedImageUris {
+  if (!imageUrisJson) return {}
+  try {
+    return JSON.parse(imageUrisJson)
+  } catch {
+    return {}
+  }
+}
+
+export function parseArchetypeTags(tags: string | null): string[] {
+  if (!tags) return []
+  return tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+}
+
+// Pre-built queries for common operations
+export const queries = {
+  topCommanders: (limit: number = 50) => ({
+    sql: `SELECT * FROM top_commanders ORDER BY popularity_score DESC LIMIT ?`,
+    params: [limit]
+  }),
+  
+  topCardsForCommander: (commanderName: string, limit: number = 50) => ({
+    sql: `SELECT * FROM top_cards_for_commanders WHERE commander_name = ? ORDER BY inclusion_rate DESC LIMIT ?`,
+    params: [commanderName, limit]
+  }),
+  
+  commanderRecommendations: (minDecks: number = 5, limit: number = 50) => ({
+    sql: `SELECT * FROM commander_recommendations WHERE total_decks >= ? ORDER BY popularity_score DESC LIMIT ?`,
+    params: [minDecks, limit]
+  }),
+  
+  tournamentsByFormat: (format: string, limit: number = 20) => ({
+    sql: `SELECT * FROM tournaments WHERE format = ? ORDER BY start_date DESC LIMIT ?`,
+    params: [format, limit]
+  }),
+  
+  playerHistory: (playerId: string) => ({
+    sql: `
+      SELECT t.tournament_name, t.start_date, d.standing, d.win_rate, 
+             d.commander_1, d.commander_2, d.deck_colors
+      FROM decks d
+      JOIN tournaments t ON d.tournament_id = t.tournament_id
+      WHERE d.player_id = ?
+      ORDER BY t.start_date DESC
+    `,
+    params: [playerId]
+  }),
+  
+  deckCards: (deckId: string) => ({
+    sql: `
+      SELECT dc.*, c.type_line, c.cmc, c.rarity, c.price_usd
+      FROM deck_cards dc
+      JOIN cards c ON dc.card_name = c.card_name
+      WHERE dc.deck_id = ?
+      ORDER BY dc.deck_section, c.cmc, dc.card_name
+    `,
+    params: [deckId]
   })
 }
