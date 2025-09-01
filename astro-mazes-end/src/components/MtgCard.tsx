@@ -25,28 +25,39 @@ function identityColors (card: DbUICard): string[] {
   const fromId: string[] = Array.isArray(card?.color_identity)
     ? card.color_identity
     : []
-  const fromFace0: string[] =
-    Array.isArray(card?.card_faces) && card.card_faces[0]?.color_indicator
-      ? card.card_faces[0].color_indicator
-      : []
-  const set = new Set<string>(
-    [...fromId, ...fromFace0].filter(c => 'WUBRG'.includes(c))
-  )
+  const faces = getFaces(card)
+  const face0 = faces[0]
+  const fromFace0: string[] = Array.isArray(face0?.color_indicator)
+    ? face0.color_indicator
+    : []
+  const set = new Set<string>([...fromId, ...fromFace0].filter(c => 'WUBRG'.includes(c)))
   return Array.from(set)
+}
+
+function parseJsonMaybe<T = any> (value: any): T | undefined {
+  if (!value) return undefined
+  if (typeof value === 'string') {
+    try { return JSON.parse(value) as T } catch { return undefined }
+  }
+  return value as T
+}
+
+function getFaces (card: DbUICard): any[] {
+  if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
+  const parsed = parseJsonMaybe<any[]>(card?.card_faces)
+  return Array.isArray(parsed) ? parsed : []
 }
 
 /** First available art image for a given face or whole card */
 function getArt (card: DbUICard, faceIdx?: number): string | undefined {
-  const f = Array.isArray(card?.card_faces)
-    ? card.card_faces[faceIdx ?? 0]
-    : null
+  const faces = getFaces(card)
+  const f = faces[faceIdx ?? 0]
+  const fUris = parseJsonMaybe<any>(f?.image_uris)
+  const cUris = parseJsonMaybe<any>(card?.image_uris)
   return (
-    f?.image_uris?.art_crop ||
-    f?.image_uris?.normal ||
-    card?.image_uris?.art_crop ||
-    card?.image_uris?.normal ||
-    card?.image_uris?.large ||
-    f?.image_uris?.large
+    fUris?.art_crop  || fUris?.normal   ||
+    cUris?.art_crop  || cUris?.normal   || cUris?.large ||
+    fUris?.large
   )
 }
 
@@ -57,11 +68,10 @@ function fromFace<T = any> (
   key: string,
   fallback: T = '' as T
 ): T {
-  const f = Array.isArray(card?.card_faces)
-    ? card.card_faces[faceIdx ?? 0]
-    : null
+  const faces = getFaces(card)
+  const f = faces[faceIdx ?? 0]
   if (f?.[key] != null) return f[key] as T
-  if (card?.[key] != null) return card[key] as T
+  if ((card as any)?.[key] != null) return (card as any)[key] as T
   return fallback
 }
 

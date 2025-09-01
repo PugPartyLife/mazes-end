@@ -7,8 +7,6 @@ import { loadCardsFromDb } from "../server/cards";
 const cards = await loadCardsFromDb(12);
 ---
 
-
-
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 p-16">
     <Navigation client:load />
@@ -25,7 +23,6 @@ const cards = await loadCardsFromDb(12);
       ))}
     </div>
     
-
     <Footer client:load />
   </div>
 </Layout>
