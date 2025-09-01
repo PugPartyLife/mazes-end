@@ -137,6 +137,7 @@ class DatabaseLoader:
             standings = tournament_data.get('standings', [])
             for standing_data in standings:
                 player = self._parse_player_data(standing_data)
+                # self.logger.info(standing_data)
                 deck = self._parse_deck_data(standing_data, tournament.tournament_id)
                 
                 # Insert player and deck
@@ -179,8 +180,8 @@ class DatabaseLoader:
                     section = card_entry.get('section', 'mainboard').lower()
                     
                     # Map section names to our standard sections
-                    if section in ['command', 'commandzone', 'commander']:
-                        section = 'commander'
+                    if section in ['command', 'commandzone', 'Commander']:
+                        section = 'Commander'
                     elif section in ['main', 'maindeck', 'mainboard', 'deck']:
                         section = 'mainboard'
                     elif section in ['side', 'sideboard']:
@@ -203,10 +204,10 @@ class DatabaseLoader:
             'sideboard': 'sideboard',
             'sideBoard': 'sideboard',
             'side': 'sideboard',
-            'commander': 'commander',
-            'commanders': 'commander',
-            'commandZone': 'commander',
-            'commandzone': 'commander'
+            'Commander': 'Commander',
+            'commanders': 'Commander',
+            'commandZone': 'Commander',
+            'commandzone': 'Commander'
         }
         
         for section_key, section_name in sections_map.items():
@@ -252,7 +253,7 @@ class DatabaseLoader:
         # Log what we found
         if deck_cards:
             self.logger.debug(f"Parsed {len(deck_cards)} cards from deck object")
-            commander_cards = [dc for dc in deck_cards if dc.deck_section == 'commander']
+            commander_cards = [dc for dc in deck_cards if dc.deck_section == 'Commander']
             if commander_cards:
                 self.logger.debug(f"  Commanders: {[dc.card_name for dc in commander_cards]}")
         else:
@@ -313,17 +314,21 @@ class DatabaseLoader:
         deck_colors = None
         has_decklist = False
         decklist_parsed = False
+
+        #for key in standing_data:
+        #    self.logger.info(f"Standing data key: {key}")
         
         # Check for deck object FIRST (highest priority)
-        deck_obj = standing_data.get('deck') or standing_data.get('deckObj')
-        
+        deck_obj = standing_data.get('deckObj')
+
         if deck_obj:
+            #self.logger.info(f"Found deck_obj: {deck_obj}")
             # We have a deck object - extract commanders from it
             commander_1, commander_2 = self._extract_commanders_from_deck_obj(deck_obj)
             deck_colors = self._extract_colors_from_deck_obj(deck_obj)
             has_decklist = True
             decklist_parsed = True  # Mark as parsed since we got data from deckObj
-            self.logger.debug(f"Extracted from deckObj - Commander 1: {commander_1}, Commander 2: {commander_2}")
+            #self.logger.info(f"Extracted from deckObj - Commander 1: {commander_1}, Commander 2: {commander_2}")
         
         # Only parse decklist text if we didn't get commanders from deck object
         decklist_raw = standing_data.get('decklist', '')
@@ -406,59 +411,16 @@ class DatabaseLoader:
         commander_1 = None
         commander_2 = None
         
+        #self.logger.info(f"Extracting commanders from deck object: {deck_obj['Commanders']}")
         # Check for 'commanders' array (most common in TopDeck)
-        if 'commanders' in deck_obj and isinstance(deck_obj['commanders'], list):
-            commanders = deck_obj['commanders']
-            if len(commanders) > 0 and commanders[0]:
-                # Handle both string and object formats
-                if isinstance(commanders[0], str):
-                    commander_1 = commanders[0].strip()
-                elif isinstance(commanders[0], dict):
-                    commander_1 = commanders[0].get('name', '').strip()
-                
-                if len(commanders) > 1 and commanders[1]:
-                    if isinstance(commanders[1], str):
-                        commander_2 = commanders[1].strip()
-                    elif isinstance(commanders[1], dict):
-                        commander_2 = commanders[1].get('name', '').strip()
-            
-            return commander_1, commander_2
-        
-        # Check for single 'commander' field
-        if 'commander' in deck_obj:
-            if isinstance(deck_obj['commander'], str):
-                commander_1 = deck_obj['commander'].strip()
-            elif isinstance(deck_obj['commander'], dict):
-                commander_1 = deck_obj['commander'].get('name', '').strip()
-            return commander_1, commander_2
-        
-        # Check for 'commandZone' array
-        if 'commandZone' in deck_obj and isinstance(deck_obj['commandZone'], list):
-            command_zone = deck_obj['commandZone']
-            if len(command_zone) > 0 and command_zone[0]:
-                if isinstance(command_zone[0], str):
-                    commander_1 = command_zone[0].strip()
-                elif isinstance(command_zone[0], dict):
-                    commander_1 = command_zone[0].get('name', '').strip()
-                
-                if len(command_zone) > 1 and command_zone[1]:
-                    if isinstance(command_zone[1], str):
-                        commander_2 = command_zone[1].strip()
-                    elif isinstance(command_zone[1], dict):
-                        commander_2 = command_zone[1].get('name', '').strip()
-            
-            return commander_1, commander_2
-        
-        # Check for legacy 'general' field
-        if 'general' in deck_obj:
-            if isinstance(deck_obj['general'], str):
-                commander_1 = deck_obj['general'].strip()
-            elif isinstance(deck_obj['general'], dict):
-                commander_1 = deck_obj['general'].get('name', '').strip()
-            return commander_1, commander_2
-        
-        # No commanders found in deck object
-        return None, None
+        for commander in deck_obj.get('Commanders', {}):
+            if commander_1:
+                commander_2 = commander
+            else:
+                commander_1 = commander
+
+        #self.logger.info(f"Found commanders in 'commanders': {commander_1}, {commander_2}")
+        return commander_1, commander_2
     
     def _generate_player_id(self, player_name: str) -> str:
         """Generate consistent player ID from player name."""
@@ -479,7 +441,7 @@ class DatabaseLoader:
             line = line.strip()
             
             # Check for commander section headers
-            if line.lower() in ['commander:', 'commanders:', 'commander', 'commanders']:
+            if line.lower() in ['commander:', 'commanders:', 'Commander', 'commanders']:
                 in_commander_section = True
                 continue
             
@@ -526,7 +488,7 @@ class DatabaseLoader:
             
             # Check for section headers
             if line.lower() in ['commander:', 'commanders:']:
-                current_section = 'commander'
+                current_section = 'Commander'
                 continue
             elif line.lower() in ['companion:']:
                 current_section = 'companion'
@@ -843,7 +805,7 @@ class DatabaseLoader:
                     card.oracle_text, card.power, card.toughness, card.colors,
                     card.color_identity, card.layout, card.card_faces,
                     card.image_uris, card.component, card.rarity, card.flavor_text,
-                    card.artist, card.set_code, card.set_name, card.collector_number,
+                    card.artist, card.salt, card.card_power, card.versatility, card.popularity, card.set_code, card.set_name, card.collector_number,
                     card.scryfall_uri, card.uri, card.rulings_uri,
                     card.prints_search_uri, card.card_type, card.price_usd,
                     card.price_updated, card.last_updated, card.card_name
