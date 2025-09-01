@@ -130,6 +130,13 @@ CREATE TABLE IF NOT EXISTS cards (
     rarity TEXT,
     flavor_text TEXT,
     artist TEXT,
+
+    -- Custom card rating metrics (not price!)
+    salt REAL,              -- Salt score (0-4 scale like EDHREC)
+    card_power REAL,        -- Card power level rating 
+    versatility REAL,       -- How flexible/versatile the card is
+    popularity REAL,        -- Popularity rating/score
+    price REAL,             -- General price level (0-5 scale)
     
     -- Set information  
     set_code TEXT,
@@ -145,8 +152,8 @@ CREATE TABLE IF NOT EXISTS cards (
     -- Simple card type reference
     card_type TEXT DEFAULT 'Unknown',
     
-    -- Price and metadata
-    price_usd REAL,
+    -- Price and metadata (this is the actual USD price)
+    price_usd REAL,         -- Real-world cost in USD
     price_updated DATETIME,
     first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,

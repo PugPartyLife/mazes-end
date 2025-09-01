@@ -378,75 +378,83 @@ class OptimizedScryfallAPI:
             return 'Unknown'
     
     def parse_card_data(self, card_data: Dict) -> Dict:
-        """Parse Scryfall card data into standardized format"""
-        now = datetime.now().isoformat()
+    """Parse Scryfall card data into standardized format matching the database schema"""
+    now = datetime.now().isoformat()
+    
+    # Handle double-faced cards - use front face for most data
+    if card_data.get('layout') in ['transform', 'modal_dfc', 'double_faced_token']:
+        face_data = card_data.get('card_faces', [{}])[0]
+        mana_cost = face_data.get('mana_cost', card_data.get('mana_cost', ''))
+        type_line = face_data.get('type_line', card_data.get('type_line', ''))
+        oracle_text = face_data.get('oracle_text', card_data.get('oracle_text', ''))
+        power = face_data.get('power')
+        toughness = face_data.get('toughness')
+        flavor_text = face_data.get('flavor_text', card_data.get('flavor_text', ''))
+    else:
+        mana_cost = card_data.get('mana_cost', '')
+        type_line = card_data.get('type_line', '')
+        oracle_text = card_data.get('oracle_text', '')
+        power = card_data.get('power')
+        toughness = card_data.get('toughness')
+        flavor_text = card_data.get('flavor_text', '')
+    
+    return {
+        'card_name': card_data['name'],
+        'scryfall_id': card_data['id'],
+        'mana_cost': mana_cost,
+        'cmc': card_data.get('cmc', 0),
+        'type_line': type_line,
+        'oracle_text': oracle_text,
+        'power': power,
+        'toughness': toughness,
         
-        # Handle double-faced cards - use front face for most data
-        if card_data.get('layout') in ['transform', 'modal_dfc', 'double_faced_token']:
-            face_data = card_data.get('card_faces', [{}])[0]
-            mana_cost = face_data.get('mana_cost', card_data.get('mana_cost', ''))
-            type_line = face_data.get('type_line', card_data.get('type_line', ''))
-            oracle_text = face_data.get('oracle_text', card_data.get('oracle_text', ''))
-            power = face_data.get('power')
-            toughness = face_data.get('toughness')
-            flavor_text = face_data.get('flavor_text', card_data.get('flavor_text', ''))
-        else:
-            mana_cost = card_data.get('mana_cost', '')
-            type_line = card_data.get('type_line', '')
-            oracle_text = card_data.get('oracle_text', '')
-            power = card_data.get('power')
-            toughness = card_data.get('toughness')
-            flavor_text = card_data.get('flavor_text', '')
+        # Color information (as JSON strings)
+        'colors': json.dumps(card_data.get('colors', [])),
+        'color_identity': json.dumps(card_data.get('color_identity', [])),
         
-        return {
-            'card_name': card_data['name'],
-            'scryfall_id': card_data['id'],
-            'mana_cost': mana_cost,
-            'cmc': card_data.get('cmc', 0),
-            'type_line': type_line,
-            'oracle_text': oracle_text,
-            'power': power,
-            'toughness': toughness,
-            
-            # Color information
-            'colors': json.dumps(card_data.get('colors', [])),
-            'color_identity': json.dumps(card_data.get('color_identity', [])),
-            
-            # Multi-face card data
-            'layout': card_data.get('layout'),
-            'card_faces': self._extract_card_faces(card_data),
-            
-            # All image URLs
-            'image_uris': self._get_all_image_urls(card_data),
-            
-            # Additional fields
-            'component': card_data.get('component'),
-            'rarity': card_data.get('rarity'),
-            'flavor_text': flavor_text,
-            'artist': card_data.get('artist'),
-            
-            # Scryfall URIs
-            'scryfall_uri': card_data.get('scryfall_uri'),
-            'uri': card_data.get('uri'),
-            'rulings_uri': card_data.get('rulings_uri'),
-            'prints_search_uri': card_data.get('prints_search_uri'),
-            
-            # Set information
-            'set_code': card_data.get('set'),
-            'set_name': card_data.get('set_name'),
-            'collector_number': card_data.get('collector_number'),
-            
-            # Normalized card type
-            'card_type': self._determine_card_type(type_line),
-            
-            # Price information
-            'price_usd': self._get_usd_price(card_data),
-            'price_updated': now,
-            
-            # Timestamps
-            'first_seen': now,
-            'last_updated': now
-        }
+        # Multi-face card data (as JSON strings)
+        'layout': card_data.get('layout'),
+        'card_faces': json.dumps(self._extract_card_faces(card_data)),  # Convert to JSON string
+        
+        # All image URLs (as JSON string)
+        'image_uris': json.dumps(self._get_all_image_urls(card_data)),  # Convert to JSON string
+        
+        # Additional fields
+        'component': card_data.get('component'),
+        'rarity': card_data.get('rarity'),
+        'flavor_text': flavor_text,
+        'artist': card_data.get('artist'),
+        
+        # Custom card rating metrics (initialize as None - to be populated later)
+        'salt': None,           # Salt score (0-4 scale like EDHREC)
+        'card_power': None,     # Card power level rating
+        'versatility': None,    # How flexible/versatile the card is
+        'popularity': None,     # Popularity rating/score
+        'price': None,          # General price level (0-5 scale)
+        
+        # Scryfall URIs
+        'scryfall_uri': card_data.get('scryfall_uri'),
+        'uri': card_data.get('uri'),
+        'rulings_uri': card_data.get('rulings_uri'),
+        'prints_search_uri': card_data.get('prints_search_uri'),
+        
+        # Set information
+        'set_code': card_data.get('set'),
+        'set_name': card_data.get('set_name'),
+        'collector_number': card_data.get('collector_number'),
+        
+        # Normalized card type
+        'card_type': self._determine_card_type(type_line),
+        
+        # Price information (actual USD price)
+        'price_usd': self._get_usd_price(card_data),
+        'price_updated': now,
+        
+        # Timestamps
+        'first_seen': now,
+        'last_updated': now
+    }
+
     
     def _get_all_image_urls(self, card_data: Dict) -> Dict[str, str]:
         """Extract all available image URLs from Scryfall image data"""
@@ -558,42 +566,68 @@ class OptimizedScryfallAPI:
         return result
     
     def _store_cards_in_database(self, cards: List[Dict]) -> None:
-        """Store parsed cards in SQLite database"""
-        if not self.db_path:
-            return
-        
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                for card in cards:
-                    sql = """
-                    INSERT OR REPLACE INTO cards (
-                        card_name, scryfall_id, mana_cost, cmc, type_line, oracle_text,
-                        power, toughness, colors, color_identity, component, rarity, 
-                        flavor_text, artist, image_uris, layout, card_faces, scryfall_uri, uri,
-                        rulings_uri, prints_search_uri, set_code, set_name, 
-                        collector_number, card_type, price_usd, price_updated, 
-                        first_seen, last_updated
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """
-                    
-                    conn.execute(sql, (
-                        card['card_name'], card['scryfall_id'], card['mana_cost'], 
-                        card['cmc'], card['type_line'], card['oracle_text'],
-                        card['power'], card['toughness'], card['colors'], 
-                        card['color_identity'], card['component'], card['rarity'],
-                        card['flavor_text'], card['artist'], json.dumps(card['image_uris']), 
-                        card['layout'], json.dumps(card['card_faces']),
-                        card['scryfall_uri'], card['uri'], card['rulings_uri'],
-                        card['prints_search_uri'], card['set_code'], card['set_name'],
-                        card['collector_number'], card['card_type'], card['price_usd'], 
-                        card['price_updated'], card['first_seen'], card['last_updated']
-                    ))
+    """Store parsed cards in SQLite database matching the schema exactly"""
+    if not self.db_path:
+        return
+    
+    try:
+        with sqlite3.connect(self.db_path) as conn:
+            for card in cards:
+                sql = """
+                INSERT OR REPLACE INTO cards (
+                    card_name, scryfall_id, mana_cost, cmc, type_line, oracle_text,
+                    power, toughness, colors, color_identity, layout, card_faces,
+                    image_uris, component, rarity, flavor_text, artist,
+                    salt, card_power, versatility, popularity, price,
+                    set_code, set_name, collector_number,
+                    scryfall_uri, uri, rulings_uri, prints_search_uri,
+                    card_type, price_usd, price_updated, 
+                    first_seen, last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
                 
-                conn.commit()
-                self.logger.info(f"Stored {len(cards)} cards in database")
-                
-        except sqlite3.Error as e:
-            self.logger.error(f"Database error: {e}")
+                conn.execute(sql, (
+                    card['card_name'], 
+                    card['scryfall_id'], 
+                    card['mana_cost'], 
+                    card['cmc'], 
+                    card['type_line'], 
+                    card['oracle_text'],
+                    card['power'], 
+                    card['toughness'], 
+                    card['colors'],  # Already JSON string
+                    card['color_identity'],  # Already JSON string
+                    card['layout'], 
+                    card['card_faces'],  # Already JSON string
+                    card['image_uris'],  # Already JSON string
+                    card['component'], 
+                    card['rarity'],
+                    card['flavor_text'], 
+                    card['artist'],
+                    card['salt'],  # Custom rating metrics (None for now)
+                    card['card_power'],
+                    card['versatility'],
+                    card['popularity'],
+                    card['price'],
+                    card['set_code'], 
+                    card['set_name'],
+                    card['collector_number'],
+                    card['scryfall_uri'], 
+                    card['uri'], 
+                    card['rulings_uri'],
+                    card['prints_search_uri'],
+                    card['card_type'], 
+                    card['price_usd'], 
+                    card['price_updated'],
+                    card['first_seen'], 
+                    card['last_updated']
+                ))
+            
+            conn.commit()
+            self.logger.info(f"Stored {len(cards)} cards in database")
+            
+    except sqlite3.Error as e:
+        self.logger.error(f"Database error: {e}")
     
     def read_card_names_from_json(self, json_file: str) -> List[str]:
         """Read card names from JSON file (supports tournament data JSON format)"""
@@ -611,7 +645,7 @@ class OptimizedScryfallAPI:
                 filters = ["http://", "https://", "www.", "moxfield"]
                 for card in data:
                     card = card.strip()
-                    if card.startswith('[') or card.startswith('{') or any(f in card for f in filters) or len(card) < 2:
+                    if card.startswith('[') or card.startswith('{') :
                         # self.logger.error(f"Invalid card name entry in list: {card}")
                         self.logger.debug(f"Invalid card name entry in list: {card}")
                         continue

@@ -89,7 +89,7 @@ class Card:
     cmc: Optional[int] = None
     type_line: Optional[str] = None
     oracle_text: Optional[str] = None
-    power: Optional[str] = None
+    power: Optional[str] = None  # Creature power/toughness (TEXT from MTG)
     toughness: Optional[str] = None
     
     # Color information (stored as JSON strings)
@@ -109,6 +109,13 @@ class Card:
     flavor_text: Optional[str] = None
     artist: Optional[str] = None
     
+    # Custom card rating metrics (matching your schema exactly)
+    salt: Optional[float] = None          # Salt score (0-4 scale)
+    card_power: Optional[float] = None    # Card power level rating
+    versatility: Optional[float] = None   # Versatility rating
+    popularity: Optional[float] = None    # Popularity rating
+    price: Optional[float] = None         # Price level (0-5 scale)
+    
     # Set information
     set_code: Optional[str] = None
     set_name: Optional[str] = None
@@ -123,12 +130,13 @@ class Card:
     # Simplified card type
     card_type: str = 'Unknown'
     
-    # Price and metadata
+    # Price and metadata (actual USD price)
     price_usd: Optional[float] = None
     price_updated: Optional[datetime] = None
     first_seen: datetime = field(default_factory=datetime.now)
     last_updated: datetime = field(default_factory=datetime.now)
     
+    # Keep the existing helper methods...
     def get_colors_list(self) -> List[str]:
         """Parse colors JSON string to list."""
         if self.colors:
@@ -155,7 +163,7 @@ class Card:
             except (json.JSONDecodeError, TypeError):
                 return {}
         return {}
-
+        
 
 @dataclass
 class DeckCard:

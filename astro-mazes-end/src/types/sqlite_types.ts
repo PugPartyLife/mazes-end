@@ -1,6 +1,12 @@
 // MTG Tournament Database Type Definitions
 
 // Core table interfaces
+export interface CardType {
+  type_name: string
+  type_plural: string
+  description: string | null
+}
+
 export interface Tournament {
   tournament_id: string
   tournament_name: string | null
@@ -69,6 +75,11 @@ export interface Card {
   rarity: string | null
   flavor_text: string | null
   artist: string | null
+  salt: number | null
+  card_power: number | null
+  versatility: number | null
+  popularity: number | null
+  price: number | null
   set_code: string | null
   set_name: string | null
   collector_number: string | null
@@ -88,6 +99,32 @@ export interface DeckCard {
   card_name: string
   quantity: number
   deck_section: string
+}
+
+export interface PlayerSurvey {
+  survey_id: string
+  player_id: string | null
+  preferred_colors: string | null // JSON array
+  avoid_colors: string | null // JSON array
+  play_style: string | null
+  win_condition_pref: string | null
+  experience_level: string | null
+  complexity_comfort: number | null
+  budget_range: string | null
+  power_level_target: number | null
+  interaction_level: string | null
+  politics_comfort: boolean
+  kindred_interest: boolean
+  artifacts_interest: boolean
+  graveyard_interest: boolean
+  spellslinger_interest: boolean
+  created_at: string
+}
+
+export interface CommanderArchetype {
+  commander_name: string
+  archetype_tag: string
+  confidence_score: number
 }
 
 // View result interfaces
@@ -149,32 +186,6 @@ export interface CommanderRecommendation {
   estimated_deck_price: number | null
 }
 
-export interface PlayerSurvey {
-  survey_id: string
-  player_id: string | null
-  preferred_colors: string | null // JSON array
-  avoid_colors: string | null // JSON array
-  play_style: string | null
-  win_condition_pref: string | null
-  experience_level: string | null
-  complexity_comfort: number | null
-  budget_range: string | null
-  power_level_target: number | null
-  interaction_level: string | null
-  politics_comfort: boolean
-  kindred_interest: boolean
-  artifacts_interest: boolean
-  graveyard_interest: boolean
-  spellslinger_interest: boolean
-  created_at: string
-}
-
-export interface CommanderArchetype {
-  commander_name: string
-  archetype_tag: string
-  confidence_score: number
-}
-
 // Helper types for parsed JSON fields
 export interface ParsedColors {
   colors: string[]
@@ -188,7 +199,28 @@ export interface ParsedImageUris {
   png?: string
   art_crop?: string
   border_crop?: string
+  [key: string]: string | undefined // For multi-face cards: face_0_small, face_1_small, etc.
 }
+
+export interface ParsedCardFace {
+  name: string
+  mana_cost: string
+  type_line: string
+  oracle_text: string
+  power?: string
+  toughness?: string
+  colors: string[]
+  flavor_text?: string
+  image_uris?: ParsedImageUris
+}
+
+// Enum types to match schema constraints
+export type PlayStyle = 'Aggro' | 'Control' | 'Combo' | 'Midrange' | 'Casual'
+export type WinConditionPref = 'Combat' | 'Combo' | 'Alt Win' | 'Value' | 'Any'
+export type ExperienceLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert'
+export type BudgetRange = 'Budget' | 'Mid' | 'High' | 'No Limit'
+export type InteractionLevel = 'Low' | 'Medium' | 'High'
+export type DeckSection = 'commander' | 'mainboard' | 'sideboard'
 
 // Legacy interfaces for backward compatibility
 export interface CardData {
