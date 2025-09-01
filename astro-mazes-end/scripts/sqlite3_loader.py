@@ -322,14 +322,12 @@ class DatabaseLoader:
         deck_obj = standing_data.get('deckObj')
 
         if deck_obj:
-            #self.logger.info(f"Found deck_obj: {deck_obj}")
             # We have a deck object - extract commanders from it
             commander_1, commander_2 = self._extract_commanders_from_deck_obj(deck_obj)
             deck_colors = self._extract_colors_from_deck_obj(deck_obj)
             has_decklist = True
             decklist_parsed = True  # Mark as parsed since we got data from deckObj
-            #self.logger.info(f"Extracted from deckObj - Commander 1: {commander_1}, Commander 2: {commander_2}")
-        
+
         # Only parse decklist text if we didn't get commanders from deck object
         decklist_raw = standing_data.get('decklist', '')
         if not commander_1 and decklist_raw and not decklist_raw.startswith('https://'):
