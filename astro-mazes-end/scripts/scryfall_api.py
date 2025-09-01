@@ -629,6 +629,7 @@ class OptimizedScryfallAPI:
         except sqlite3.Error as e:
             self.logger.error(f"Database error: {e}")
     
+    
     def read_card_names_from_json(self, json_file: str) -> List[str]:
         """Read card names from JSON file (supports tournament data JSON format)"""
         try:
@@ -638,26 +639,91 @@ class OptimizedScryfallAPI:
             # Handle different JSON formats
             if 'card_names' in data:
                 # Format from tournament data pipeline
-                return data['card_names']
-            elif isinstance(data, list):  # this is what we are doing atm it accepts other data structures from topdeck basically
+                card_names = data['card_names']
+            elif isinstance(data, list):
                 # Simple list of card names
-                clean_data = []
-                filters = ["http://", "https://", "www.", "moxfield"]
-                for card in data:
-                    card = card.strip()
-                    if card.startswith('[') or card.startswith('{') :
-                        # self.logger.error(f"Invalid card name entry in list: {card}")
-                        self.logger.debug(f"Invalid card name entry in list: {card}")
-                        continue
-                    clean_data.append(card)
-                self.logger.info(f"cleaned {len(clean_data)} card names from list. total entries: {len(data)}")
-                return clean_data
+                card_names = data
             elif 'cards' in data:
                 # Existing card data format
-                return [card.get('name', card.get('card_name', '')) for card in data['cards']]
+                card_names = [card.get('name', card.get('card_name', '')) for card in data['cards']]
             else:
                 self.logger.error(f"Unrecognized JSON format in {json_file}")
                 return []
+            
+            # Clean and filter card names
+            clean_data = []
+            
+            # Patterns to filter out
+            url_patterns = [
+                "http://", "https://", "www.", ".com", ".net", ".org", ".gg",
+                "moxfield", "archidekt", "tappedout", "manabox", "deckbox",
+                "mtggoldfish", "edhrec", "scryfall", "gatherer", "tcgplayer"
+            ]
+            
+            # Invalid entry patterns
+            invalid_patterns = [
+                r'^\[.*\]$',  # Entries that are just brackets
+                r'^\{.*\}$',  # Entries that are just braces
+                r'^//.*',     # Comments
+                r'^#.*',      # Comments
+                r'^\d+$',     # Just numbers
+                r'^-+$',      # Just dashes
+                r'^\s*$'      # Empty or whitespace only
+            ]
+            
+            filtered_count = 0
+            for card in card_names:
+                if not isinstance(card, str):
+                    continue
+                    
+                card = card.strip()
+                
+                # Skip empty strings
+                if not card or len(card) < 2:
+                    filtered_count += 1
+                    continue
+                
+                # Check for URL patterns
+                card_lower = card.lower()
+                if any(pattern in card_lower for pattern in url_patterns):
+                    self.logger.debug(f"Filtered out URL/website reference: {card}")
+                    filtered_count += 1
+                    continue
+                
+                # Check for invalid patterns
+                import re
+                if any(re.match(pattern, card) for pattern in invalid_patterns):
+                    self.logger.debug(f"Filtered out invalid entry: {card}")
+                    filtered_count += 1
+                    continue
+                
+                # Additional checks for common non-card entries
+                if card.startswith('[') and card.endswith(']'):
+                    self.logger.debug(f"Filtered out bracketed entry: {card}")
+                    filtered_count += 1
+                    continue
+                    
+                if card.startswith('{') and card.endswith('}'):
+                    self.logger.debug(f"Filtered out braced entry: {card}")
+                    filtered_count += 1
+                    continue
+                
+                # Check if it's likely a deck name or description
+                if len(card) > 100:  # Card names are never this long
+                    self.logger.debug(f"Filtered out overly long entry (likely deck description): {card[:50]}...")
+                    filtered_count += 1
+                    continue
+                
+                # If it passed all filters, it's likely a card name
+                clean_data.append(card)
+            
+            self.logger.info(f"Loaded {len(clean_data)} card names from {json_file}")
+            self.logger.info(f"Filtered out {filtered_count} invalid entries")
+            
+            if filtered_count > 0:
+                self.logger.info(f"Success rate: {len(clean_data)/(len(clean_data) + filtered_count)*100:.1f}%")
+            
+            return clean_data
                 
         except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
             self.logger.error(f"Error reading {json_file}: {e}")
