@@ -54,10 +54,24 @@ function getArt (card: DbUICard, faceIdx?: number): string | undefined {
   const f = faces[faceIdx ?? 0]
   const fUris = parseJsonMaybe<any>(f?.image_uris)
   const cUris = parseJsonMaybe<any>(card?.image_uris)
+  const idx = faceIdx ?? 0
+  const faceFlattened = pickFlattenedFaceUri(cUris, idx)
   return (
-    fUris?.art_crop  || fUris?.normal   ||
+    fUris?.art_crop  || fUris?.normal   || faceFlattened ||
     cUris?.art_crop  || cUris?.normal   || cUris?.large ||
     fUris?.large
+  )
+}
+
+function pickFlattenedFaceUri (uris: any, faceIdx: number): string | undefined {
+  if (!uris || typeof uris !== 'object') return undefined
+  const p = `face_${faceIdx}_`
+  return (
+    uris[`${p}art_crop`] ||
+    uris[`${p}normal`]   ||
+    uris[`${p}large`]    ||
+    uris[`${p}small`]    ||
+    uris[`${p}png`]
   )
 }
 
@@ -164,7 +178,7 @@ export default function MtgCard ({
   card,
   index
 }: MtgCardProps): React.JSX.Element {
-  const hasFaces = Array.isArray(card?.card_faces) && card.card_faces.length > 1
+  const hasFaces = getFaces(card).length > 1
   const [faceIdx, setFaceIdx] = useState<number>(0)
 
   // pull from active face where possible
