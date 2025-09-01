@@ -1,1 +1,7 @@
 @import "tailwindcss";
+@import "./colors.css";
+@import "./typography.css";
+
+.animate-strikethrough::before {
+  transform: scaleX(1);
+}

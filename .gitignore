@@ -1,6 +1,19 @@
 # build output
 dist/
 
+# db files
+mtg_tournament_data.db
+test.db
+test.db-*
+*.db
+*.db-shm
+*.db-wal
+test.db
+test.db-* 
+*.db
+*.db-shm
+*.db-wal
+
 # generated types
 .astro/
 
@@ -15,6 +28,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# large data artifacts
+astro-mazes-end/src/data/*.json
+!astro-mazes-end/src/data/.keep
 
 # environment variables
 .env

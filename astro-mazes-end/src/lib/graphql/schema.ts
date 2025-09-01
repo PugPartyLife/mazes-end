@@ -1,236 +1,295 @@
 import SchemaBuilder from '@pothos/core'
-import DataloaderPlugin from '@pothos/plugin-dataloader';
-import { queryDatabase } from '../db/sqlite'
-import type { Card, CommanderPairing, CardStatsSummary, PlayerCardPreference, TrendingCard } from '../../types/cards'
+import DataloaderPlugin from '@pothos/plugin-dataloader'
+import { queryDatabase, queries } from '../db/sqlite'
+import type { 
+  TopCommander, 
+  TopCardForCommander, 
+  CommanderRecommendation,
+  Tournament,
+  Player,
+  Deck,
+  Card
+} from '../../types'
 
 export const builder = new SchemaBuilder<{
   Dataloader: true;
   Objects: {
+    TopCommander: TopCommander
+    TopCardForCommander: TopCardForCommander
+    CommanderRecommendation: CommanderRecommendation
+    Tournament: Tournament
+    Player: Player
+    Deck: Card
     Card: Card
-    CommanderPairing: CommanderPairing
-    CardStatsSummary: CardStatsSummary
-    PlayerCardPreference: PlayerCardPreference
-    TrendingCard: TrendingCard
+    DatabaseSummary: {
+      totalTournaments: number
+      totalPlayers: number
+      totalDecks: number
+      totalCards: number
+      totalDeckCards: number
+      latestTournament: string
+      databasePath: string
+    }
   }
 }>({
   plugins: [DataloaderPlugin],
 })
 
-builder.objectType('Card', {
+// Top Commanders from view
+builder.objectType('TopCommander', {
   fields: (t) => ({
-    name: t.exposeString('cardName'),
-    totalEntries: t.exposeInt('totalEntries'),
-    totalDecks: t.exposeInt('totalDecks'),
+    commanderName: t.exposeString('commander_name'),
+    partnerName: t.exposeString('partner_name', { nullable: true }),
+    totalDecks: t.exposeInt('total_decks'),
+    tournamentsPlayed: t.exposeInt('tournaments_played'),
+    avgWinRate: t.exposeFloat('avg_win_rate'),
+    avgStanding: t.exposeFloat('avg_standing'),
+    top8Finishes: t.exposeInt('top_8_finishes'),
+    top16Finishes: t.exposeInt('top_16_finishes'),
+    firstSeen: t.exposeString('first_seen'),
+    lastSeen: t.exposeString('last_seen'),
+    popularityScore: t.exposeFloat('popularity_score'),
+  }),
+})
+
+// Top Cards for specific commanders
+builder.objectType('TopCardForCommander', {
+  fields: (t) => ({
+    commanderName: t.exposeString('commander_name'),
+    cardName: t.exposeString('card_name'),
+    typeLine: t.exposeString('type_line', { nullable: true }),
+    cmc: t.exposeInt('cmc', { nullable: true }),
+    colors: t.exposeString('colors', { nullable: true }),
+    rarity: t.exposeString('rarity', { nullable: true }),
+    priceUsd: t.exposeFloat('price_usd', { nullable: true }),
+    cardType: t.exposeString('card_type'),
+    totalInclusions: t.exposeInt('total_inclusions'),
+    decksIncluded: t.exposeInt('decks_included'),
+    tournamentsSeenIn: t.exposeInt('tournaments_seen'),
+    inclusionRate: t.exposeFloat('inclusion_rate'),
+    avgWinRateWithCard: t.exposeFloat('avg_win_rate_with_card'),
+    avgStandingWithCard: t.exposeFloat('avg_standing_with_card'),
+    deckSection: t.exposeString('deck_section'),
+  }),
+})
+
+// Commander Recommendations from view
+builder.objectType('CommanderRecommendation', {
+  fields: (t) => ({
+    commanderName: t.exposeString('commander_name'),
+    partnerName: t.exposeString('partner_name', { nullable: true }),
+    totalDecks: t.exposeInt('total_decks'),
+    avgWinRate: t.exposeFloat('avg_win_rate'),
+    popularityScore: t.exposeFloat('popularity_score'),
+    top8Finishes: t.exposeInt('top_8_finishes'),
+    colorIdentity: t.exposeString('color_identity', { nullable: true }),
+    commanderType: t.exposeString('commander_type', { nullable: true }),
+    commanderCost: t.exposeString('commander_cost', { nullable: true }),
+    commanderCmc: t.exposeInt('commander_cmc', { nullable: true }),
+    commanderAbility: t.exposeString('commander_ability', { nullable: true }),
+    commanderImages: t.exposeString('commander_images', { nullable: true }),
+    commanderUrl: t.exposeString('commander_url', { nullable: true }),
+    archetypeTags: t.exposeString('archetype_tags', { nullable: true }),
+    estimatedDeckPrice: t.exposeFloat('estimated_deck_price', { nullable: true }),
+  }),
+})
+
+// Tournament data
+builder.objectType('Tournament', {
+  fields: (t) => ({
+    tournamentId: t.exposeString('tournament_id'),
+    tournamentName: t.exposeString('tournament_name', { nullable: true }),
+    game: t.exposeString('game'),
+    format: t.exposeString('format'),
+    startDate: t.exposeString('start_date', { nullable: true }),
+    swissRounds: t.exposeInt('swiss_rounds', { nullable: true }),
+    topCut: t.exposeInt('top_cut', { nullable: true }),
+    totalPlayers: t.exposeInt('total_players', { nullable: true }),
+    locationCity: t.exposeString('location_city', { nullable: true }),
+    locationState: t.exposeString('location_state', { nullable: true }),
+    hasDecklists: t.exposeBoolean('has_decklists'),
+  }),
+})
+
+// Database summary
+builder.objectType('DatabaseSummary', {
+  fields: (t) => ({
     totalTournaments: t.exposeInt('totalTournaments'),
-    avgWinRate: t.exposeFloat('avgWinRate'),
-    avgStanding: t.exposeFloat('avgStanding'),
-    firstSeen: t.exposeString('firstSeen'),
-    lastSeen: t.exposeString('lastSeen'),
-  }),
-})
-
-builder.objectType('CommanderPairing', {
-  fields: (t) => ({
-    commander1: t.exposeString('commander1'),
-    commander2: t.exposeString('commander2', { nullable: true }),
-    deckCount: t.exposeInt('deckCount'),
-    avgWinRate: t.exposeFloat('avgWinRate'),
-    top8Count: t.exposeInt('top8Count'),
-    lastSeen: t.exposeString('lastSeen'),
-  }),
-})
-
-builder.objectType('PlayerCardPreference', {
-  fields: (t) => ({
-    playerName: t.exposeString('playerName'),
-    cardName: t.exposeString('cardName'),
-    timesPlayed: t.exposeInt('timesPlayed'),
-    tournamentsPlayed: t.exposeInt('tournamentsPlayed'),
-    avgPerformance: t.exposeFloat('avgPerformance'),
-    lastPlayed: t.exposeString('lastPlayed'),
-  }),
-})
-
-builder.objectType('TrendingCard', {
-  fields: (t) => ({
-    cardName: t.exposeString('cardName'),
-    entriesRecent: t.exposeInt('entriesRecent'),
-    entriesPrevious: t.exposeInt('entriesPrevious'),
-    totalEntries: t.exposeInt('totalEntries'),
-    growthRate: t.exposeFloat('growthRate'),
-  }),
-})
-
-builder.objectType('CardStatsSummary', {
-  fields: (t) => ({
-    totalTournaments: t.exposeInt('totalTournaments'),
+    totalPlayers: t.exposeInt('totalPlayers'),
     totalDecks: t.exposeInt('totalDecks'),
-    totalCardEntries: t.exposeInt('totalCardEntries'),
-    uniqueCards: t.exposeInt('uniqueCards'),
-    uniquePlayers: t.exposeInt('uniquePlayers'),
+    totalCards: t.exposeInt('totalCards'),
+    totalDeckCards: t.exposeInt('totalDeckCards'),
     latestTournament: t.exposeString('latestTournament'),
     databasePath: t.exposeString('databasePath'),
-    databaseSize: t.exposeInt('databaseSize'),
   }),
 })
 
 builder.queryType({
   fields: (t) => ({
-    topCards: t.field({
-      type: ['Card'],
+    // Top commanders using the view
+    topCommanders: t.field({
+      type: ['TopCommander'],
       args: {
-        limit: t.arg.int({ defaultValue: 20 }),
-        format: t.arg.string({ required: false }),
+        limit: t.arg.int({ defaultValue: 50 }),
       },
-      resolve: async (_, { limit, format }) => {
-        let query = `
-          SELECT 
-            card_name as cardName,
-            COUNT(*) as totalEntries,
-            COUNT(DISTINCT deck_id) as totalDecks,
-            COUNT(DISTINCT tournament_id) as totalTournaments,
-            AVG(deck_win_rate) as avgWinRate,
-            AVG(deck_standing) as avgStanding,
-            MIN(tournament_date) as firstSeen,
-            MAX(tournament_date) as lastSeen
-          FROM card_entries
-        `
-        
-        const params: any[] = []
-        if (format) {
-          query += ` WHERE tournament_format = ?`
-          params.push(format)
-        }
-        
-        query += `
-          GROUP BY card_name
-          ORDER BY totalEntries DESC
-          LIMIT ?
-        `
-        params.push(limit)
-        
-        return queryDatabase<Card>(query, params)
-      },
-    }),
-    
-    commanderMeta: t.field({
-      type: ['CommanderPairing'],
-      args: {
-        limit: t.arg.int({ defaultValue: 15 }),
-        format: t.arg.string({ defaultValue: "EDH" }),
-      },
-      resolve: async (_, { limit, format }) => {
-        return queryDatabase<CommanderPairing>(`
-          SELECT 
-            d.commander_1 as commander1,
-            d.commander_2 as commander2,
-            COUNT(DISTINCT d.deck_id) as deckCount,
-            AVG(d.win_rate) as avgWinRate,
-            COUNT(CASE WHEN d.standing <= 8 THEN 1 END) as top8Count,
-            MAX(ce.tournament_date) as lastSeen
-          FROM decks d
-          JOIN card_entries ce ON d.deck_id = ce.deck_id
-          WHERE d.commander_1 IS NOT NULL AND ce.tournament_format = ?
-          GROUP BY d.commander_1, d.commander_2
-          HAVING deckCount >= 3
-          ORDER BY deckCount DESC
-          LIMIT ?
-        `, [format, limit])
+      resolve: async (_, { limit }) => {
+        const { sql, params } = queries.topCommanders(limit)
+        return queryDatabase<TopCommander>(sql, params)
       },
     }),
 
-    playerPreferences: t.field({
-      type: ['PlayerCardPreference'],
+    // Top cards for a specific commander
+    topCardsForCommander: t.field({
+      type: ['TopCardForCommander'],
       args: {
-        playerName: t.arg.string({ required: false }),
+        commanderName: t.arg.string({ required: true }),
+        limit: t.arg.int({ defaultValue: 50 }),
+      },
+      resolve: async (_, { commanderName, limit }) => {
+        const { sql, params } = queries.topCardsForCommander(commanderName, limit)
+        return queryDatabase<TopCardForCommander>(sql, params)
+      },
+    }),
+
+    // Commander recommendations
+    commanderRecommendations: t.field({
+      type: ['CommanderRecommendation'],
+      args: {
+        minDecks: t.arg.int({ defaultValue: 5 }),
+        limit: t.arg.int({ defaultValue: 50 }),
+      },
+      resolve: async (_, { minDecks, limit }) => {
+        const { sql, params } = queries.commanderRecommendations(minDecks, limit)
+        return queryDatabase<CommanderRecommendation>(sql, params)
+      },
+    }),
+
+    // Tournaments by format
+    tournaments: t.field({
+      type: ['Tournament'],
+      args: {
+        format: t.arg.string({ defaultValue: 'EDH' }),
         limit: t.arg.int({ defaultValue: 20 }),
       },
-      resolve: async (_, { playerName, limit }) => {
-        let query = `
-          SELECT 
-            player_name as playerName,
-            card_name as cardName,
-            COUNT(*) as timesPlayed,
-            COUNT(DISTINCT tournament_id) as tournamentsPlayed,
-            AVG(deck_win_rate) as avgPerformance,
-            MAX(tournament_date) as lastPlayed
-          FROM card_entries
-          WHERE player_name IS NOT NULL
-        `
-        
-        const params: any[] = []
-        if (playerName) {
-          query += ` AND player_name = ?`
-          params.push(playerName)
-        }
-        
-        query += `
-          GROUP BY player_name, card_name
-          HAVING timesPlayed >= 2
-          ORDER BY timesPlayed DESC, avgPerformance DESC
-          LIMIT ?
-        `
-        params.push(limit)
-        
-        return queryDatabase<PlayerCardPreference>(query, params)
+      resolve: async (_, { format, limit }) => {
+        const { sql, params } = queries.tournamentsByFormat(format, limit)
+        return queryDatabase<Tournament>(sql, params)
       },
     }),
 
-    trendingCards: t.field({
-      type: ['TrendingCard'],
+    // Player tournament history
+    playerHistory: t.field({
+      type: [builder.objectRef<{
+        tournament_name: string | null
+        start_date: string | null
+        standing: number | null
+        win_rate: number
+        commander_1: string | null
+        commander_2: string | null
+        deck_colors: string | null
+      }>('PlayerHistory')],
       args: {
-        days: t.arg.int({ defaultValue: 30 }),
-        limit: t.arg.int({ defaultValue: 30 }),
+        playerId: t.arg.string({ required: true }),
       },
-      resolve: async (_, { days, limit }) => {
-        const daysValue = days ?? 30; // Provide fallback
-        
-        return queryDatabase<TrendingCard>(`
-          SELECT 
-            card_name as cardName,
-            COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue} days') THEN 1 END) as entriesRecent,
-            COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue * 2} days') 
-                      AND tournament_date < date('now', '-${daysValue} days') THEN 1 END) as entriesPrevious,
-            COUNT(*) as totalEntries,
-            CASE 
-              WHEN COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue * 2} days') 
-                            AND tournament_date < date('now', '-${daysValue} days') THEN 1 END) > 0 
-              THEN ((COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue} days') THEN 1 END) - 
-                    COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue * 2} days') 
-                          AND tournament_date < date('now', '-${daysValue} days') THEN 1 END)) * 100.0 / 
-                    COUNT(CASE WHEN tournament_date >= date('now', '-${daysValue * 2} days') 
-                          AND tournament_date < date('now', '-${daysValue} days') THEN 1 END))
-              ELSE 0.0
-            END as growthRate
-          FROM card_entries
-          WHERE tournament_date >= date('now', '-${daysValue * 2} days')
-          GROUP BY card_name
-          HAVING entriesRecent >= 3
-          ORDER BY entriesRecent DESC
-          LIMIT ?
-        `, [limit])
+      resolve: async (_, { playerId }) => {
+        const { sql, params } = queries.playerHistory(playerId)
+        return queryDatabase(sql, params)
       },
     }),
 
+    // Database summary statistics
     summary: t.field({
-      type: 'CardStatsSummary',
+      type: 'DatabaseSummary',
       resolve: async () => {
         const results = await queryDatabase<any>(`
           SELECT 
             (SELECT COUNT(*) FROM tournaments) as totalTournaments,
+            (SELECT COUNT(*) FROM players) as totalPlayers,
             (SELECT COUNT(*) FROM decks) as totalDecks,
-            (SELECT COUNT(*) FROM card_entries) as totalCardEntries,
-            (SELECT COUNT(DISTINCT card_name) FROM card_entries) as uniqueCards,
-            (SELECT COUNT(DISTINCT player_name) FROM card_entries WHERE player_name IS NOT NULL) as uniquePlayers,
-            (SELECT MAX(tournament_date) FROM card_entries) as latestTournament
+            (SELECT COUNT(*) FROM cards) as totalCards,
+            (SELECT COUNT(*) FROM deck_cards) as totalDeckCards,
+            (SELECT MAX(start_date) FROM tournaments) as latestTournament
         `)
         
         return {
           ...results[0],
-          databasePath: './mtg_tournament_data.db',
-          databaseSize: 0 // You could add file size calculation here
+          databasePath: './test.db',
         }
       },
     }),
+
+    // Search cards by name
+    searchCards: t.field({
+      type: ['Card'],
+      args: {
+        query: t.arg.string({ required: true }),
+        limit: t.arg.int({ defaultValue: 20 }),
+      },
+      resolve: async (_, { query, limit }) => {
+        return queryDatabase<Card>(
+          `SELECT * FROM cards WHERE card_name LIKE ? ORDER BY card_name LIMIT ?`,
+          [`%${query}%`, limit]
+        )
+      },
+    }),
+
+    // Get specific card details
+    card: t.field({
+      type: 'Card',
+      args: {
+        name: t.arg.string({ required: true }),
+      },
+      resolve: async (_, { name }) => {
+        const results = await queryDatabase<Card>(
+          `SELECT * FROM cards WHERE card_name = ?`,
+          [name]
+        )
+        return results[0] || null
+      },
+    }),
+  }),
+})
+
+// Define PlayerHistory object type
+builder.objectType(builder.objectRef<{
+  tournament_name: string | null
+  start_date: string | null
+  standing: number | null
+  win_rate: number
+  commander_1: string | null
+  commander_2: string | null
+  deck_colors: string | null
+}>('PlayerHistory'), {
+  name: 'PlayerHistory',
+  fields: (t) => ({
+    tournamentName: t.exposeString('tournament_name', { nullable: true }),
+    startDate: t.exposeString('start_date', { nullable: true }),
+    standing: t.exposeInt('standing', { nullable: true }),
+    winRate: t.exposeFloat('win_rate'),
+    commander1: t.exposeString('commander_1', { nullable: true }),
+    commander2: t.exposeString('commander_2', { nullable: true }),
+    deckColors: t.exposeString('deck_colors', { nullable: true }),
+  }),
+})
+
+// Card object type
+builder.objectType('Card', {
+  fields: (t) => ({
+    cardName: t.exposeString('card_name'),
+    scryfallId: t.exposeString('scryfall_id', { nullable: true }),
+    manaCost: t.exposeString('mana_cost', { nullable: true }),
+    cmc: t.exposeInt('cmc', { nullable: true }),
+    typeLine: t.exposeString('type_line', { nullable: true }),
+    oracleText: t.exposeString('oracle_text', { nullable: true }),
+    power: t.exposeString('power', { nullable: true }),
+    toughness: t.exposeString('toughness', { nullable: true }),
+    colors: t.exposeString('colors', { nullable: true }),
+    colorIdentity: t.exposeString('color_identity', { nullable: true }),
+    rarity: t.exposeString('rarity', { nullable: true }),
+    cardType: t.exposeString('card_type'),
+    priceUsd: t.exposeFloat('price_usd', { nullable: true }),
+    setCode: t.exposeString('set_code', { nullable: true }),
+    artist: t.exposeString('artist', { nullable: true }),
+    scryfallUri: t.exposeString('scryfall_uri', { nullable: true }),
   }),
 })

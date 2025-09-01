@@ -1,0 +1,23 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation.jsx";
+import Footer from "../components/Footer.jsx";
+import MtgCard from "../components/MtgCard";
+
+// get all commanders from the database via sqlite_main.py show_commander_meta
+const cards = [{}]
+---
+
+<Layout title="The Maze's End - cEDH Hub">
+  <div class="min-h-screen bg-gray-900 p-16">
+    <Navigation client:load />
+
+    <div
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+    >
+      {cards.map((card, index) => <MtgCard index={index} card={card} />)}
+    </div>
+
+    <Footer client:load />
+  </div>
+</Layout>
