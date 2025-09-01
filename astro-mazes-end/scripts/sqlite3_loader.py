@@ -127,6 +127,28 @@ class DatabaseLoader:
     def _load_tournament(self, conn: sqlite3.Connection, tournament_data: Dict) -> None:
         """Load a single tournament and its associated data."""
         try:
+            # Check if this tournament only has Moxfield URLs for decklists
+            standings = tournament_data.get('standings', [])
+            
+            # Count decks with actual decklists vs Moxfield URLs
+            total_decks = len(standings)
+            moxfield_decks = 0
+            actual_decks = 0
+            
+            for standing in standings:
+                decklist = standing.get('decklist', '')
+                if decklist:
+                    if 'moxfield.com' in decklist.lower() or decklist.startswith('https://'):
+                        moxfield_decks += 1
+                    else:
+                        actual_decks += 1
+            
+            # Skip tournament if ALL decklists are just Moxfield URLs
+            if total_decks > 0 and moxfield_decks > 0 and actual_decks == 0:
+                self.logger.info(f"Skipping tournament {tournament_data.get('TID', 'unknown')} - all {moxfield_decks} decklists are Moxfield URLs")
+                self.stats['tournaments_skipped'] += 1
+                return
+            
             # Extract tournament info
             tournament = self._parse_tournament_data(tournament_data)
             
@@ -134,10 +156,14 @@ class DatabaseLoader:
             self._insert_tournament(conn, tournament)
             
             # Process standings (players and decks)
-            standings = tournament_data.get('standings', [])
             for standing_data in standings:
+                # Skip individual decks that only have Moxfield URLs
+                decklist = standing_data.get('decklist', '')
+                if decklist and ('moxfield.com' in decklist.lower() or decklist.startswith('https://')):
+                    self.logger.debug(f"Skipping deck for {standing_data.get('name', 'unknown')} - Moxfield URL only")
+                    continue
+                
                 player = self._parse_player_data(standing_data)
-                # self.logger.info(standing_data)
                 deck = self._parse_deck_data(standing_data, tournament.tournament_id)
                 
                 # Insert player and deck
@@ -314,9 +340,6 @@ class DatabaseLoader:
         deck_colors = None
         has_decklist = False
         decklist_parsed = False
-
-        #for key in standing_data:
-        #    self.logger.info(f"Standing data key: {key}")
         
         # Check for deck object FIRST (highest priority)
         deck_obj = standing_data.get('deckObj')
@@ -328,19 +351,37 @@ class DatabaseLoader:
             has_decklist = True
             decklist_parsed = True  # Mark as parsed since we got data from deckObj
 
-        # Only parse decklist text if we didn't get commanders from deck object
+        # Get decklist and check if it's just a URL
         decklist_raw = standing_data.get('decklist', '')
-        if not commander_1 and decklist_raw and not decklist_raw.startswith('https://'):
+        
+        # Check if the decklist is just a URL (Moxfield, Archidekt, etc.)
+        is_url = False
+        if decklist_raw:
+            decklist_lower = decklist_raw.lower().strip()
+            url_patterns = [
+                'http://', 'https://', 'www.',
+                'moxfield.com', 'archidekt.com', 'tappedout.net',
+                'deckstats.net', 'manabox.app', 'mtggoldfish.com'
+            ]
+            is_url = any(pattern in decklist_lower for pattern in url_patterns)
+        
+        # Only parse decklist text if we didn't get commanders from deck object and it's not a URL
+        if not commander_1 and decklist_raw and not is_url:
             # Fallback to parsing raw decklist text
             commanders = self._extract_commanders_from_decklist(decklist_raw)
             commander_1 = commanders[0] if commanders else None
             commander_2 = commanders[1] if len(commanders) > 1 else None
-            has_decklist = bool(decklist_raw.strip())
+            has_decklist = True
             decklist_parsed = False  # Mark for later parsing since we only did basic extraction
             self.logger.debug(f"Extracted from decklist text - Commander 1: {commander_1}, Commander 2: {commander_2}")
+        elif is_url:
+            # Log that we're skipping URL-based decklists
+            self.logger.debug(f"Skipping URL decklist for {player_name}: {decklist_raw}")
+            has_decklist = False
+            decklist_raw = None  # Don't store URLs as decklists
         
         # If still no commanders but we have a decklist, mark it for later parsing
-        if not commander_1 and decklist_raw:
+        if not commander_1 and decklist_raw and not is_url:
             has_decklist = bool(decklist_raw.strip())
             decklist_parsed = False
             self.logger.debug(f"No commanders found, marking deck for later parsing")
@@ -360,7 +401,7 @@ class DatabaseLoader:
             losses_bracket=standing_data.get('lossesBracket', 0),
             win_rate=standing_data.get('winRate', 0.0),
             byes=standing_data.get('byes', 0),
-            decklist_raw=decklist_raw,  # Always store raw decklist for later reference
+            decklist_raw=decklist_raw,  # Will be None for URLs
             commander_1=commander_1,
             commander_2=commander_2,
             deck_colors=deck_colors or self._extract_deck_colors([c for c in [commander_1, commander_2] if c]),
