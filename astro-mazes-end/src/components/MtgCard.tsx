@@ -3,6 +3,7 @@ import ManaText from '../components/ManaText'
 import CardStats from '../components/CardStats'
 import type { DbUICard } from '../types'
 import { symbols as allSets } from '../data/magicSets'
+import Tooltip from '../components/Tooltip'
 
 type MtgCardProps = {
   card: DbUICard
@@ -353,10 +354,26 @@ export default function MtgCard ({
               {typeLine}
             </p>
             {setInfo?.icon ? (
-              <div className='relative group shrink-0'>
+              <Tooltip
+                placement='top-right'
+                content={(
+                  <div>
+                    <div className='text-[12px] font-semibold leading-snug'>{setInfo.name}</div>
+                    <div className='mt-0.5 text-[11px] text-neutral-300 leading-snug'>
+                      {setInfo.released_at ? new Date(setInfo.released_at).toLocaleDateString() : ''}
+                      {setInfo.code ? (
+                        <span className='ml-2 inline-flex items-center rounded px-1.5 py-[1px] text-[10px] font-bold tracking-wide uppercase bg-neutral-800 text-neutral-200 ring-1 ring-neutral-700'>
+                          {setInfo.code}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              >
                 <img
                   src={setInfo.icon}
-                  alt={setInfo.name}
+                  alt=""
+                  aria-hidden='true'
                   width={16}
                   height={16}
                   loading='lazy'
@@ -364,29 +381,7 @@ export default function MtgCard ({
                   className='opacity-90'
                   style={{ filter: 'invert(1) brightness(1.15) contrast(1.05)' }}
                 />
-                {/* Tooltip */}
-                <div
-                  role='tooltip'
-                  className='
-                    pointer-events-none absolute right-0 bottom-full mb-2 z-10
-                    rounded-lg ring-1 ring-neutral-700 bg-neutral-900/95 text-neutral-100
-                    px-2.5 py-2 shadow-xl min-w-[180px]
-                    opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition
-                  '
-                >
-                  <div className='text-[12px] font-semibold leading-snug'>{setInfo.name}</div>
-                  <div className='mt-0.5 text-[11px] text-neutral-300 leading-snug'>
-                    {setInfo.released_at ? new Date(setInfo.released_at).toLocaleDateString() : ''}
-                    {setInfo.code ? (
-                      <span className='ml-2 inline-flex items-center rounded px-1.5 py-[1px] text-[10px] font-bold tracking-wide uppercase bg-neutral-800 text-neutral-200 ring-1 ring-neutral-700'>
-                        {setInfo.code}
-                      </span>
-                    ) : null}
-                  </div>
-                  {/* Arrow */}
-                  <div className='absolute -bottom-1 right-2 w-2 h-2 rotate-45 bg-neutral-900/95 ring-1 ring-neutral-700' />
-                </div>
-              </div>
+              </Tooltip>
             ) : null}
           </div>
         </div>

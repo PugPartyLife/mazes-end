@@ -38,7 +38,7 @@ export default function Navigation(): React.JSX.Element {
           {/* Brand */}
           <a
             href="/"
-            className={`hidden md:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide ${scrolled ? 'text-me-yellow' : 'text-me-yellow'}`}
+            className={`hidden md:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide text-me-yellow ${scrolled ? 'opacity-100 drop-shadow-[0_0_6px_rgba(218,162,28,0.35)]' : 'opacity-90'}`}
             aria-label="The Maze's End Home"
           >
             <Logo size={22} />

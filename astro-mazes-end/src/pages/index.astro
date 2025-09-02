@@ -1,18 +1,18 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Banner from "../components/Banner.jsx";
-import Footer from "../components/Footer.jsx";
-import FeatureSection from "../components/FeatureSection.js";
+import Navigation from "../components/Navigation";
+import Banner from "../components/Banner";
+import Footer from "../components/Footer";
+import FeatureSection from "../components/FeatureSection";
 
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900">
-    <Navigation client:load />
-    <Banner client:load />
+    <Navigation client:idle />
+    <Banner client:visible />
 
-    <FeatureSection client:load />
+    <FeatureSection client:idle />
 
     <section class="py-20 bg-navy-800">
       <div class="text-lg text-gray-300 max-w-4xl mx-auto text-left space-y-6">

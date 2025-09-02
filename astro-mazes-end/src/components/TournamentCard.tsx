@@ -16,13 +16,20 @@ export type TournamentCardProps = {
 export default function TournamentCard({ id, name, startDate, totalPlayers, topCut, decks }: TournamentCardProps) {
   const [open, setOpen] = useState(false)
   const dateStr = startDate ? new Date(startDate).toLocaleDateString() : ''
+  const contentId = `${id}-decks`
 
   return (
     <div className='w-full tournament-card' id={id}>
-      <SurfaceCard className='px-4 py-3 cursor-pointer' onClick={() => setOpen(v => !v)}>
-        <div className='flex items-center justify-between gap-3'>
-          <div>
-            <h3 className='text-lg sm:text-xl font-semibold text-neutral-100'>{name}</h3>
+      <SurfaceCard className='px-4 py-3'>
+        <button
+          type='button'
+          className='w-full flex items-center justify-between gap-3 cursor-pointer'
+          aria-expanded={open}
+          aria-controls={contentId}
+          onClick={() => setOpen(v => !v)}
+        >
+          <div className='min-w-0 text-left'>
+            <h3 className='text-lg sm:text-xl font-semibold text-neutral-100 truncate'>{name}</h3>
             <MetaRow>
               {dateStr ? <span>{dateStr}</span> : null}
               {typeof totalPlayers === 'number' ? <span>Players: {totalPlayers}</span> : null}
@@ -30,14 +37,14 @@ export default function TournamentCard({ id, name, startDate, totalPlayers, topC
               <span>Decks: {decks.length}</span>
             </MetaRow>
           </div>
-          <div className={`transition-transform ${open ? 'rotate-180' : ''}`}>
+          <div className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden='true'>
             <ChevronDown size={20} className='text-neutral-300' />
           </div>
-        </div>
+        </button>
       </SurfaceCard>
 
       {open && (
-        <div className='mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+        <div id={contentId} className='mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
           {decks.map((d, i) => (
             <DeckBox key={`${id}-${i}`} {...d} />
           ))}

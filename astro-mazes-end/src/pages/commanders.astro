@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 import CommanderBox from "../components/CommanderBox";
 import { loadTopCommanders } from "../server/commanders";
 import PageHeader from "../components/PageHeader";
@@ -13,9 +13,9 @@ const commanders = await loadTopCommanders(20);
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 bg-vignette p-16">
-    <Navigation client:load />
+    <Navigation client:idle />
     <div class="mx-auto max-w-7xl">
-      <PageHeader client:load title="Top Commanders" />
+      <PageHeader client:idle title="Top Commanders" placeholder="Search commanders..." />
     </div>
 
     <div id="commander-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -37,6 +37,6 @@ const commanders = await loadTopCommanders(20);
       });
     </script>
 
-    <Footer client:load />
+    <Footer />
   </div>
 </Layout>

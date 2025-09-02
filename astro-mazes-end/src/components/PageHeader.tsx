@@ -9,7 +9,8 @@ export default function PageHeader ({
   colors = ['W','U','B','R','G'],
   onToggleColor,
   surface = true,
-  showReset = true
+  showReset = true,
+  placeholder = 'Search...'
 }: {
   title: string
   subtitle?: string
@@ -18,6 +19,7 @@ export default function PageHeader ({
   onToggleColor?: (c: ColorId) => void
   surface?: boolean
   showReset?: boolean
+  placeholder?: string
 }) {
   const [q, setQ] = useState('')
   const [sub, setSub] = useState<string | undefined>(subtitle)
@@ -93,7 +95,7 @@ export default function PageHeader ({
                   window.dispatchEvent(ev)
                 }
               }}
-              placeholder='Search decks...'
+              placeholder={placeholder}
               className='w-full sm:w-72 rounded-lg bg-neutral-800 text-neutral-100 placeholder-neutral-400 px-3 py-2 ring-1 ring-neutral-700 focus:outline-none focus:ring-neutral-500'
             />
           </div>

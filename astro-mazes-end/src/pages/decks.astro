@@ -2,8 +2,8 @@
 export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 import DeckBox from "../components/DeckBox";
 import PageHeader from "../components/PageHeader";
 import { loadTopDeckBoxes } from "../server/decks";
@@ -13,10 +13,10 @@ const decks = await loadTopDeckBoxes(15);
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 bg-vignette p-6 sm:p-10 lg:p-16">
-    <Navigation client:load />
+    <Navigation client:idle />
 
     <div class="mx-auto max-w-7xl">
-      <PageHeader client:load title="Top Decks" subtitle="Recent Events" />
+      <PageHeader client:idle title="Top Decks" subtitle="Recent Events" placeholder="Search decks..." />
       <div id="deck-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
         {decks.map((d) => {
           const fallbackColors = Array.from(new Set([
@@ -44,6 +44,6 @@ const decks = await loadTopDeckBoxes(15);
       });
     </script>
 
-    <Footer client:load />
+    <Footer />
   </div>
 </Layout>

@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 import MtgCard from "../components/MtgCard";
 import { loadCardsFromDb } from "../server/cards";
 import PageHeader from "../components/PageHeader";
@@ -10,9 +10,9 @@ const cards = await loadCardsFromDb(12);
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 bg-vignette p-16">
-    <Navigation client:load />
+    <Navigation client:idle />
     <div class="mx-auto max-w-7xl">
-      <PageHeader client:load title="Top Cards" />
+      <PageHeader client:idle title="Top Cards" placeholder="Search cards..." />
     </div>
 
     <div id="card-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -37,6 +37,6 @@ const cards = await loadCardsFromDb(12);
       });
     </script>
     
-    <Footer client:load />
+    <Footer />
   </div>
 </Layout>

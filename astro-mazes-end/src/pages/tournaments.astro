@@ -1,7 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 import PageHeader from "../components/PageHeader";
 import TournamentCard from "../components/TournamentCard";
 import { loadTournaments, loadTournamentDeckBoxes } from "../server/tournaments";
@@ -9,22 +9,24 @@ import { loadTournaments, loadTournamentDeckBoxes } from "../server/tournaments"
 const limit = Number(Astro.url.searchParams.get('limit') ?? 10);
 const tournaments = await loadTournaments(limit, 0);
 const decksByTid = new Map<string, any[]>();
-for (const t of tournaments) {
-  const decks = await loadTournamentDeckBoxes(t.id);
-  decksByTid.set(t.id, decks);
-}
+await Promise.all(
+  tournaments.map(async (t) => {
+    const decks = await loadTournamentDeckBoxes(t.id);
+    decksByTid.set(t.id, decks);
+  })
+);
 ---
 
 <Layout title="The Maze's End - Tournaments">
   <div class="min-h-screen bg-gray-900 bg-vignette p-16">
-    <Navigation client:load />
+    <Navigation client:idle />
     <div class="mx-auto max-w-7xl">
-      <PageHeader client:load title="Tournaments" />
+      <PageHeader client:idle title="Tournaments" placeholder="Search tournaments..." />
     </div>
 
     <div class="mx-auto max-w-7xl space-y-6">
       {tournaments.map((t) => (
-        <TournamentCard client:load
+        <TournamentCard client:visible
           id={t.id}
           name={t.name}
           startDate={t.startDate}
@@ -68,7 +70,7 @@ for (const t of tournaments) {
         } catch {}
       }
     </script>
-    <Footer client:load />
+    <Footer />
   </div>
   
 </Layout>
