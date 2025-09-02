@@ -33,8 +33,16 @@ export default function Navigation(): React.JSX.Element {
       scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg' : 'bg-transparent'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Changed to justify-center to center the navigation */}
-        <div className="flex justify-center items-center h-16">
+        {/* Keep items centered; add brand at left for identity */}
+        <div className="flex justify-center items-center h-16 relative">
+          {/* Brand */}
+          <a
+            href="/"
+            className={`hidden md:block absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide ${scrolled ? 'text-me-yellow' : 'text-me-yellow'}`}
+            aria-label="The Maze's End Home"
+          >
+            The Maze's End
+          </a>
           {/* Desktop Navigation - removed ml-10 to center properly */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">

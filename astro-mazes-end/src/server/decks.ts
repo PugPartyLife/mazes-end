@@ -17,7 +17,9 @@ function parseDeckColorsString(colors: string | null | undefined): Color[] {
 
 type Row = {
   deckId: string
+  tournamentId: string | null
   tournamentName: string | null
+  totalPlayers: number | null
   playerName: string | null
   wins: number | null
   losses: number | null
@@ -28,6 +30,7 @@ type Row = {
   standing: number | null
   topCut: number | null
   totalCards: number | null
+  same_commander_count: number | null
   // commander 1
   c1_name: string | null
   c1_mana_cost: string | null
@@ -59,25 +62,54 @@ type Row = {
 }
 
 export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
+  // Show at most 3 decks per recent tournament; fetch a small buffer of tournaments
+  const perTournament = 3
+  const tournamentsLimit = Math.max(5, Math.ceil(limit / perTournament) + 2)
+
   const rows = await queryDatabase<Row>(
     `
-      WITH ranked AS (
-        SELECT d.deck_id AS deckId,
-               d.player_name AS playerName,
-               d.wins, d.losses, d.draws,
-               d.win_rate AS winRate,
-               d.deck_colors AS deckColors,
-               d.standing, t.top_cut AS topCut,
-               COALESCE(t.start_date, d.created_at) AS lastSeen,
-               t.tournament_name AS tournamentName,
-               (SELECT SUM(quantity) FROM deck_cards dc WHERE dc.deck_id = d.deck_id) AS totalCards,
-               d.commander_1 AS c1_name,
-               d.commander_2 AS c2_name
-        FROM decks d
-        LEFT JOIN tournaments t ON t.tournament_id = d.tournament_id
-        WHERE d.has_decklist = 1 AND d.commander_1 IS NOT NULL AND TRIM(d.commander_1) <> ''
-        ORDER BY d.win_rate DESC, COALESCE(t.start_date, d.created_at) DESC
+      WITH recent_tournaments AS (
+        SELECT t.tournament_id, COALESCE(t.start_date, MAX(d.created_at)) AS lastSeen
+        FROM tournaments t
+        LEFT JOIN decks d ON d.tournament_id = t.tournament_id
+        GROUP BY t.tournament_id
+        ORDER BY lastSeen DESC
         LIMIT ?
+      ),
+      deck_totals AS (
+        SELECT deck_id, SUM(quantity) AS totalCards
+        FROM deck_cards
+        GROUP BY deck_id
+      ),
+      ranked AS (
+        SELECT 
+          d.deck_id AS deckId,
+          d.tournament_id AS tournamentId,
+          d.player_name AS playerName,
+          d.wins, d.losses, d.draws,
+          d.win_rate AS winRate,
+          d.deck_colors AS deckColors,
+          d.standing, t.top_cut AS topCut,
+          t.total_players AS totalPlayers,
+          COALESCE(t.start_date, d.created_at) AS lastSeen,
+          t.tournament_name AS tournamentName,
+          dt.totalCards AS totalCards,
+          d.commander_1 AS c1_name,
+          d.commander_2 AS c2_name,
+          -- Other decks at event sharing the same commander pair
+          (COUNT(*) OVER (
+            PARTITION BY d.tournament_id, d.commander_1, COALESCE(d.commander_2,'')
+          ) - 1) AS same_commander_count,
+          ROW_NUMBER() OVER (
+            PARTITION BY d.tournament_id
+            ORDER BY CASE WHEN d.standing IS NULL THEN 999999 ELSE d.standing END ASC, d.win_rate DESC
+          ) AS rn
+        FROM decks d
+        JOIN recent_tournaments rt ON rt.tournament_id = d.tournament_id
+        LEFT JOIN tournaments t ON t.tournament_id = d.tournament_id
+        LEFT JOIN deck_totals dt ON dt.deck_id = d.deck_id
+        WHERE d.has_decklist = 1
+          AND d.commander_1 IS NOT NULL AND TRIM(d.commander_1) <> ''
       )
       SELECT ranked.*,
              c1.mana_cost AS c1_mana_cost, c1.type_line AS c1_type_line, c1.oracle_text AS c1_oracle_text,
@@ -93,8 +125,11 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
       FROM ranked
       LEFT JOIN cards c1 ON c1.card_name = ranked.c1_name
       LEFT JOIN cards c2 ON c2.card_name = ranked.c2_name
+      WHERE ranked.rn <= 3
+      ORDER BY ranked.lastSeen DESC, ranked.standing ASC, ranked.winRate DESC
+      LIMIT ?
     `,
-    [limit]
+    [tournamentsLimit, limit]
   )
 
   return rows.map((r) => {
@@ -138,11 +173,14 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
     }
 
     const name = `(${r.c1_name || ''}${r.c2_name ? `/${r.c2_name}` : ''})`
-    const top8 = r.standing != null && r.topCut != null && r.standing <= r.topCut ? 1 : 0
+    // A true Top 8 means final standing is 8 or better, regardless of event's top_cut size
+    const top8 = r.standing != null && r.standing <= 8 ? 1 : 0
 
     const deck: DeckBoxProps = {
       name,
       tournamentName: r.tournamentName || '',
+      tournamentPlayers: r.totalPlayers ?? undefined,
+      tournamentId: r.tournamentId || undefined,
       colors,
       player: r.playerName || 'Unknown',
       wins: Number(r.wins || 0),
@@ -151,6 +189,8 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
       avgWinRate: Number(r.winRate || 0),
       top8Count: top8,
       deckCount: 1,
+      sameCommanderCount: Math.max(0, Number(r.same_commander_count || 0)),
+      standing: r.standing ?? undefined,
       lastSeen: r.lastSeen || '',
       cardCount: Number(r.totalCards || (98 + commanders.length)),
       commanders,

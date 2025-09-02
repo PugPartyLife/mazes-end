@@ -4,6 +4,7 @@ import Navigation from "../components/Navigation.jsx";
 import Footer from "../components/Footer.jsx";
 import CommanderBox from "../components/CommanderBox";
 import { loadTopCommanders } from "../server/commanders";
+import PageHeader from "../components/PageHeader";
 
 
 
@@ -13,12 +14,34 @@ const commanders = await loadTopCommanders(20);
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 p-16">
     <Navigation client:load />
+    <div class="mx-auto max-w-7xl">
+      <PageHeader client:load title="Top Commanders" />
+    </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <div id="commander-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       {commanders.map((c) => (
-        <CommanderBox client:visible {...c} />
+        <div class="commander-item" data-name={c.name} data-colors={(c.colors || []).join("")}>
+          <CommanderBox client:visible {...c} />
+        </div>
       ))}
     </div>
+
+    <script>
+      const grid = document.getElementById('commander-grid');
+      function applyFilters({ q, colors }) {
+        const term = (q || '').toLowerCase().trim();
+        const selected = new Set(colors || []);
+        for (const el of grid.querySelectorAll('.commander-item')) {
+          const name = (el.getAttribute('data-name') || '').toLowerCase();
+          const deckColors = new Set((el.getAttribute('data-colors') || '').split(''));
+          const matchesSearch = !term || name.includes(term);
+          const matchesColors = selected.size === 0 || Array.from(selected).every(c => deckColors.has(c));
+          el.style.display = (matchesSearch && matchesColors) ? '' : 'none';
+        }
+      }
+      window.addEventListener('filter:search', (e) => { window.__searchTerm = e.detail?.q; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+      window.addEventListener('filter:colors', (e) => { window.__selectedColors = e.detail?.colors || []; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+    </script>
 
     <Footer client:load />
   </div>

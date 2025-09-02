@@ -2,17 +2,19 @@ import React, { useState } from 'react'
 import MtgCard from './MtgCard'
 import CommanderPeek from './CommanderPeek'
 import WinRateBar from './WinRateBar'
-import type { DbUICard } from '../types'
+import type { DbUICard, ColorId } from '../types'
 import CommanderNamePills from './CommanderNamePills'
 import CardModal from './CardModal'
 import { stripParens } from '../lib/ui/text'
 import { formatDateShort } from '../lib/ui/format'
 import { normalizeWinratePercent } from '../lib/ui/winrate'
+import SurfaceCard from './SurfaceCard'
+import SectionLabel from './SectionLabel'
 
 export type CommanderBoxProps = {
   name: string
   commanders: DbUICard[]
-  colors?: ('W'|'U'|'B'|'R'|'G')[]
+  colors?: ColorId[]
   // top_commanders metrics
   totalDecks: number
   tournamentsPlayed: number
@@ -43,8 +45,8 @@ const CommanderBox: React.FC<CommanderBoxProps> = ({
   const peekZone = Math.ceil(peekHeight * MASK_RATIO) + SHADOW_PAD
   const paddingTop = peekZone + 16
   return (
-    <div
-      className='relative w-full max-w-[26rem] rounded-3xl bg-neutral-900/92 ring-1 ring-neutral-800 shadow-[0_15px_40px_rgba(0,0,0,.55)] px-5 pb-5'
+    <SurfaceCard
+      className='relative w-full max-w-[26rem] px-5 pb-5'
       style={{ paddingTop }}
       aria-label={stripParens(name)}
     >
@@ -74,34 +76,34 @@ const CommanderBox: React.FC<CommanderBoxProps> = ({
       <div className='relative z-[1] grid grid-cols-2 gap-4 text-neutral-200'>
         <WinRateBar percent={wr} className='col-span-2' />
         <div>
-          <div className='text-[11px] uppercase tracking-wide text-neutral-400'>Avg standing</div>
+          <SectionLabel>Avg standing</SectionLabel>
           <div className='text-sm font-semibold'>{avgStanding?.toFixed(2) ?? '—'}</div>
         </div>
         <div>
-          <div className='text-[11px] uppercase tracking-wide text-neutral-400'>Top 8</div>
+          <SectionLabel>Top 8</SectionLabel>
           <div className='text-sm font-semibold'>{top8Finishes ?? 0}</div>
         </div>
         <div>
-          <div className='text-[11px] uppercase tracking-wide text-neutral-400'>Top 16</div>
+          <SectionLabel>Top 16</SectionLabel>
           <div className='text-sm font-semibold'>{top16Finishes ?? 0}</div>
         </div>
         <div>
-          <div className='text-[11px] uppercase tracking-wide text-neutral-400'>Decks</div>
+          <SectionLabel>Decks</SectionLabel>
           <div className='text-sm font-semibold'>{totalDecks ?? 0}</div>
         </div>
         <div>
-          <div className='text-[11px] uppercase tracking-wide text-neutral-400'>Popularity</div>
+          <SectionLabel>Popularity</SectionLabel>
           <div className='text-sm font-semibold'>{popularityScore?.toFixed(2) ?? '—'}</div>
         </div>
       </div>
-      <div className='relative z-[1] mt-3 text-[11px] text-neutral-400'>
+      <div className='relative z-[1] mt-3 text-[11px] text-neutral-300'>
         <span>First: {formatDate(firstSeen) || '—'}</span>
         <span className='mx-2'>•</span>
         <span>Last: {formatDate(lastSeen) || '—'}</span>
       </div>
       {/* Modal */}
       <CardModal card={open} onClose={() => setOpen(null)} />
-    </div>
+    </SurfaceCard>
   )
 }
 

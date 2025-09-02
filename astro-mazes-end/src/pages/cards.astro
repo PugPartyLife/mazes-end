@@ -4,16 +4,20 @@ import Navigation from "../components/Navigation.jsx";
 import Footer from "../components/Footer.jsx";
 import MtgCard from "../components/MtgCard";
 import { loadCardsFromDb } from "../server/cards";
+import PageHeader from "../components/PageHeader";
 const cards = await loadCardsFromDb(12);
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
   <div class="min-h-screen bg-gray-900 p-16">
     <Navigation client:load />
+    <div class="mx-auto max-w-7xl">
+      <PageHeader client:load title="Top Cards" />
+    </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+    <div id="card-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       {cards.map((card) => (
-        <div class="relative aspect-[63/88] w-full max-w-sm mx-auto">
+        <div class="relative aspect-[63/88] w-full max-w-sm mx-auto card-item" data-name={card.name} data-colors={(card.color_identity || card.colors || []).join("")}>
           <div class="absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent">
             <div class="w-full h-full">
               <MtgCard client:visible card={card} />
@@ -22,6 +26,22 @@ const cards = await loadCardsFromDb(12);
         </div>
       ))}
     </div>
+    <script>
+      const grid = document.getElementById('card-grid');
+      function applyFilters({ q, colors }) {
+        const term = (q || '').toLowerCase().trim();
+        const selected = new Set(colors || []);
+        for (const el of grid.querySelectorAll('.card-item')) {
+          const name = (el.getAttribute('data-name') || '').toLowerCase();
+          const cset = new Set((el.getAttribute('data-colors') || '').split(''));
+          const matchesSearch = !term || name.includes(term);
+          const matchesColors = selected.size === 0 || Array.from(selected).every(c => cset.has(c));
+          el.style.display = (matchesSearch && matchesColors) ? '' : 'none';
+        }
+      }
+      window.addEventListener('filter:search', (e) => { window.__searchTerm = e.detail?.q; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+      window.addEventListener('filter:colors', (e) => { window.__selectedColors = e.detail?.colors || []; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+    </script>
     
     <Footer client:load />
   </div>

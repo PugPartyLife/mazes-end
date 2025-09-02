@@ -1,20 +1,25 @@
 import React, { useState, useCallback } from 'react'
 import MtgCard from './MtgCard'
-import type { DbUICard } from '../types'
+import type { DbUICard, ColorId } from '../types'
 import WinRateBar from './WinRateBar'
 import CommanderNamePills from './CommanderNamePills'
 import CommanderPeek from './CommanderPeek'
 import CardModal from './CardModal'
-import { stripParens } from '../lib/ui/text'
 import { normalizeWinratePercent } from '../lib/ui/winrate'
-
-type Color = 'W' | 'U' | 'B' | 'R' | 'G'
+import RecordBadge from './RecordBadge'
+import { Trophy } from 'lucide-react'
+import SurfaceCard from './SurfaceCard'
+import SectionLabel from './SectionLabel'
+import Pill from './Pill'
+import MetaRow from './MetaRow'
 
 export type DeckBoxProps = {
   name: string // deck name (linked + gradient)
   tournamentName: string // neutral pill (empty string to hide)
+  tournamentPlayers?: number
+  tournamentId?: string
   commanders: DbUICard[] // 1–2 cards from our DB shape
-  colors: Color[] // explicit colors (derive if empty)
+  colors: ColorId[] // explicit colors (derive if empty)
   player: string
 
   // DB-driven stats
@@ -24,6 +29,8 @@ export type DeckBoxProps = {
   avgWinRate: number // 0–1 or 0–100, normalized below
   top8Count: number
   deckCount: number
+  sameCommanderCount?: number
+  standing?: number
   lastSeen: string
 
   cardCount: number
@@ -53,6 +60,10 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   avgWinRate,
   top8Count,
   deckCount,
+  tournamentPlayers = 0,
+  tournamentId,
+  sameCommanderCount = 0,
+  standing,
   lastSeen,
   cardCount = 99,
   deckUrl = 'https://topdeck.gg/deck/yXwMlmGU74ISJ9x5OdlP/cQ30wpoy0eSg7t80b79fgn07Wz62', // example
@@ -82,23 +93,24 @@ const DeckBox: React.FC<DeckBoxProps> = ({
     [onOpenCard]
   )
 
+  // Derived UI metrics
+  const metaShare = tournamentPlayers > 0
+    ? Math.round((sameCommanderCount / tournamentPlayers) * 100)
+    : 0
+  const showTop8 = (top8Count ?? 0) > 0
   // Modal handles ESC & focus
 
   return (
     <>
       {/* Keep grid space when modal open, but hide visually */}
-      <div
+      <SurfaceCard
         className={[
           'relative w-full max-w-[25rem] sm:max-w-[26rem]',
-          'rounded-3xl overflow-visible',
-          'bg-neutral-900/92 backdrop-blur',
-          'shadow-[0_15px_40px_rgba(0,0,0,.55)] ring-1 ring-neutral-800',
           'px-4 sm:px-5 pb-4 sm:pb-5',
           open ? 'invisible' : '',
           className ?? ''
         ].join(' ')}
         style={{ paddingTop }}
-        aria-hidden={!!open}
       >
         {/* Commander peeks (inside reserved zone, lower z-index) */}
         <div
@@ -130,26 +142,14 @@ const DeckBox: React.FC<DeckBoxProps> = ({
             <CommanderNamePills commanders={safeCommanders} onOpen={handleOpen} />
           </div>
 
-          {/* Deck name link (small, neutral) */}
-          <div className='mb-4'>
-            <a
-              href={deckUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              title={name}
-              className='text-[13px] sm:text-[14px] font-medium text-neutral-100 hover:opacity-90 hover:underline underline-offset-2'
-            >
-              {stripParens(name)}
-            </a>
-          </div>
+          {/* (Removed duplicate commander title link for cleaner hierarchy) */}
 
-          {/* Tournament (neutral pill, unchanged) */}
+          {/* Tournament (neutral pill, compact metadata) */}
           {tournamentName && (
             <div className='rounded-xl border border-neutral-700/60 bg-neutral-800/70 px-3 py-2 mb-4'>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-300 mb-1'>
-                Tournament
-              </div>
-              <p
+              <SectionLabel>Tournament</SectionLabel>
+              <a
+                href={tournamentId ? `/tournaments?id=${encodeURIComponent(tournamentId)}&name=${encodeURIComponent(tournamentName)}` : '/tournaments'}
                 className='text-sm sm:text-[15px] font-semibold leading-snug text-neutral-100'
                 title={tournamentName}
                 style={{
@@ -160,7 +160,17 @@ const DeckBox: React.FC<DeckBoxProps> = ({
                 }}
               >
                 {tournamentName}
-              </p>
+              </a>
+              <MetaRow>
+                {standing && standing <= 3 ? (
+                  <span className='inline-flex items-center gap-1'>
+                    <Trophy className={`${standing === 1 ? 'text-amber-400' : standing === 2 ? 'text-gray-300' : 'text-orange-400'}`} size={16} />
+                    <span className='text-neutral-200'>{ordinal(standing)} Place</span>
+                  </span>
+                ) : null}
+                {tournamentPlayers ? <span>Players: {tournamentPlayers}</span> : null}
+                {lastSeen ? <span>{new Date(lastSeen).toLocaleDateString()}</span> : null}
+              </MetaRow>
             </div>
           )}
 
@@ -170,7 +180,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
               {(player ?? '?').toString().slice(0, 2).toUpperCase()}
             </div>
             <div className='min-w-0'>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
+              <div className='text-[11px] uppercase tracking-wide text-neutral-300'>
                 Player
               </div>
               <div className='text-sm sm:text-base font-medium text-neutral-300 truncate'>
@@ -182,37 +192,29 @@ const DeckBox: React.FC<DeckBoxProps> = ({
           {/* Stats */}
           <div className='grid grid-cols-2 gap-4 text-neutral-200'>
             <WinRateBar percent={winrate} className='col-span-2' />
-
-            <div>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
-                Top 8
-              </div>
-              <div className='text-sm font-semibold'>{top8Count ?? '—'}</div>
-            </div>
-            <div>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
-                Decks
-              </div>
-              <div className='text-sm font-semibold'>{deckCount ?? '—'}</div>
+            <div className='col-span-2'>
+              <RecordBadge wins={wins} losses={losses} draws={draws} />
             </div>
 
-            <div>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
-                Cards
+            {showTop8 ? (
+              <div className='col-span-1'>
+                <SectionLabel>Finish</SectionLabel>
+                <Pill variant='success'>Top 8</Pill>
               </div>
+            ) : null}
+
+
+            <div>
+              <SectionLabel>Cards</SectionLabel>
               <div className='text-sm font-semibold'>{cardCount}</div>
             </div>
             <div>
-              <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
-                Last seen
-              </div>
-              <div className='text-sm font-semibold'>
-                {lastSeen ? new Date(lastSeen).toLocaleDateString() : '—'}
-              </div>
+              <SectionLabel>Meta share</SectionLabel>
+              <div className='text-sm font-semibold'>{metaShare}%</div>
             </div>
           </div>
         </div>
-      </div>
+      </SurfaceCard>
 
       {/* Modal with full MtgCard */}
       <CardModal card={open} onClose={() => setOpen(null)} />
@@ -221,3 +223,10 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 }
 
 export default DeckBox
+
+function ordinal (n?: number): string {
+  if (!n && n !== 0) return ''
+  const s = ['th', 'st', 'nd', 'rd']
+  const v = n % 100
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`
+}

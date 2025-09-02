@@ -1,10 +1,8 @@
 import React from 'react'
 import ManaText from './ManaText'
-import type { DbUICard } from '../types'
+import type { DbUICard, ColorId } from '../types'
 
-type Color = 'W' | 'U' | 'B' | 'R' | 'G'
-
-const COLOR_TINT: Record<Color | 'C', string> = {
+const COLOR_TINT: Record<ColorId | 'C', string> = {
   W: '#F8F6D8',
   U: '#C1D7E9',
   B: '#CAC5C0',
@@ -13,8 +11,8 @@ const COLOR_TINT: Record<Color | 'C', string> = {
   C: '#D1D5DB'
 }
 
-function headerGradient (colors?: Color[]) {
-  const cols = (colors?.length ? colors : ['C']) as (Color | 'C')[]
+function headerGradient (colors?: ColorId[]) {
+  const cols = (colors?.length ? colors : ['C']) as (ColorId | 'C')[]
   if (cols.length === 1) {
     const c = COLOR_TINT[cols[0]]
     return { backgroundImage: `linear-gradient(180deg, ${c}, ${c})` }
@@ -24,15 +22,15 @@ function headerGradient (colors?: Color[]) {
   return { backgroundImage: `linear-gradient(90deg, ${parts})` }
 }
 
-function pipsText (colors?: Color[]) {
+function pipsText (colors?: ColorId[]) {
   if (!colors || colors.length === 0) return ''
   return colors.map(c => `{${c}}`).join('')
 }
 
-function cardColors (card?: DbUICard): Color[] {
-  const set = new Set<Color>()
+function cardColors (card?: DbUICard): ColorId[] {
+  const set = new Set<ColorId>()
   const ids = (card?.color_identity || card?.colors || []) as string[]
-  for (const k of ids) if ('WUBRG'.includes(k)) set.add(k as Color)
+  for (const k of ids) if ('WUBRG'.includes(k)) set.add(k as ColorId)
   return Array.from(set)
 }
 
