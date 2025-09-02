@@ -155,8 +155,11 @@ class DatabaseLoader:
             # Insert tournament
             self._insert_tournament(conn, tournament)
             
-            # Process standings (players and decks)
-            for standing_data in standings:
+            # Process standings (players and decks). If no explicit standing is provided
+            # in the data, assign ordinal rank based on list order (1-based).
+            for idx, standing_data in enumerate(standings, start=1):
+                if 'standing' not in standing_data or standing_data.get('standing') is None:
+                    standing_data['standing'] = idx
                 # Skip individual decks that only have Moxfield URLs
                 decklist = standing_data.get('decklist', '')
                 if decklist and ('moxfield.com' in decklist.lower() or decklist.startswith('https://')):
@@ -289,11 +292,17 @@ class DatabaseLoader:
     
     def _parse_tournament_data(self, data: Dict) -> Tournament:
         """Parse tournament data from TopDeck JSON format."""
-        # Convert dateCreated to datetime if it exists
+        # Convert TopDeck timestamps to datetime. Prefer 'startDate',
+        # fall back to 'dateCreated' if present.
         start_date = None
-        if data.get('dateCreated'):
+        ts = data.get('startDate') or data.get('dateCreated')
+        if ts:
             try:
-                start_date = datetime.fromtimestamp(data['dateCreated'])
+                # Some exports store seconds, others ms. Normalize.
+                ts = int(ts)
+                if ts > 10_000_000_000:  # looks like ms epoch
+                    ts = ts / 1000.0
+                start_date = datetime.fromtimestamp(ts)
             except (ValueError, TypeError):
                 pass
         
@@ -386,20 +395,34 @@ class DatabaseLoader:
             decklist_parsed = False
             self.logger.debug(f"No commanders found, marking deck for later parsing")
         
+        # Compute a safe win rate if missing from source
+        wins = int(standing_data.get('wins', 0) or 0)
+        losses = int(standing_data.get('losses', 0) or 0)
+        draws = int(standing_data.get('draws', 0) or 0)
+        games = wins + losses + draws
+        src_win_rate = standing_data.get('winRate')
+        win_rate = None
+        try:
+            win_rate = float(src_win_rate) if src_win_rate is not None else None
+        except (TypeError, ValueError):
+            win_rate = None
+        if win_rate is None:
+            win_rate = (wins / games) if games > 0 else 0.0
+
         return Deck(
             deck_id=deck_id,
             tournament_id=tournament_id,
             player_id=player_id,
             player_name=player_name,
             standing=standing_data.get('standing'),
-            wins=standing_data.get('wins', 0),
-            losses=standing_data.get('losses', 0),
-            draws=standing_data.get('draws', 0),
+            wins=wins,
+            losses=losses,
+            draws=draws,
             wins_swiss=standing_data.get('winsSwiss', 0),
             losses_swiss=standing_data.get('lossesSwiss', 0),
             wins_bracket=standing_data.get('winsBracket', 0),
             losses_bracket=standing_data.get('lossesBracket', 0),
-            win_rate=standing_data.get('winRate', 0.0),
+            win_rate=win_rate,
             byes=standing_data.get('byes', 0),
             decklist_raw=decklist_raw,  # Will be None for URLs
             commander_1=commander_1,
@@ -408,6 +431,60 @@ class DatabaseLoader:
             has_decklist=has_decklist,
             decklist_parsed=decklist_parsed
         )
+
+    def backfill_deck_metrics(self) -> None:
+        """Backfill missing deck metrics (win_rate, standing) for existing DB.
+
+        - win_rate: compute from wins/losses/draws where missing
+        - standing: assign ordinal per tournament if missing, prioritizing
+                    players with bracket matches first, then by wins/draws/losses
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cur = conn.cursor()
+
+                # Backfill win_rate where missing or zero but games recorded
+                cur.execute(
+                    """
+                    UPDATE decks
+                    SET win_rate = CAST(wins AS REAL) / (wins + losses + draws)
+                    WHERE (win_rate IS NULL OR win_rate = 0)
+                      AND (wins + losses + draws) > 0
+                    """
+                )
+
+                # Backfill standing using a windowed ranking within each tournament
+                # Prefer bracket participants, then higher wins, then fewer losses, then draws
+                cur.execute(
+                    """
+                    WITH ranking AS (
+                      SELECT
+                        deck_id,
+                        ROW_NUMBER() OVER (
+                          PARTITION BY tournament_id
+                          ORDER BY 
+                            CASE WHEN (COALESCE(wins_bracket,0) + COALESCE(losses_bracket,0)) > 0 THEN 0 ELSE 1 END,
+                            wins DESC,
+                            draws DESC,
+                            losses ASC,
+                            win_rate DESC,
+                            player_name ASC
+                        ) AS rn
+                      FROM decks
+                    )
+                    UPDATE decks
+                    SET standing = (
+                      SELECT rn FROM ranking WHERE ranking.deck_id = decks.deck_id
+                    )
+                    WHERE standing IS NULL
+                    """
+                )
+
+                conn.commit()
+                self.logger.info("Backfilled win_rate and standing for decks")
+
+        except Exception as e:
+            self.logger.error(f"Error backfilling deck metrics: {e}")
 
     def _extract_colors_from_deck_obj(self, deck_obj: Dict) -> Optional[str]:
         """Extract deck color identity from deck object."""
@@ -1145,6 +1222,7 @@ Examples:
     parser.add_argument('--tournaments', help='Tournament JSON file from TopDeck API')
     parser.add_argument('--cards', help='Card JSON file from Scryfall API')
     parser.add_argument('--update-colors', action='store_true', help='Update deck color identities')
+    parser.add_argument('--backfill-metrics', action='store_true', help='Backfill missing deck metrics (win_rate, standing)')
     parser.add_argument('--update', action='store_true', help='Update existing records (default: True)')
     parser.add_argument('--no-update', action='store_true', help='Skip existing records instead of updating')
     parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
@@ -1187,6 +1265,11 @@ Examples:
     if args.update_colors:
         print("Updating deck color identities...")
         loader.update_deck_colors()
+    
+    # Backfill derived metrics if requested
+    if args.backfill_metrics:
+        print("Backfilling deck metrics (win_rate, standing)...")
+        loader.backfill_deck_metrics()
     
     # Print statistics
     loader.print_statistics()

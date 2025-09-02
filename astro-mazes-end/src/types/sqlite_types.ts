@@ -207,6 +207,8 @@ export interface DbUICard {
   name: string
   mana_cost?: string
   type_line?: string
+  flavor_text?: string
+  card_power?: number
   oracle_text?: string
   power?: string
   toughness?: string
