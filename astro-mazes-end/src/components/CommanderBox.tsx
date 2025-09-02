@@ -45,10 +45,15 @@ const CommanderBox: React.FC<CommanderBoxProps> = ({
   const peekZone = Math.ceil(peekHeight * MASK_RATIO) + SHADOW_PAD
   const paddingTop = peekZone + 16
   return (
+    <>
     <SurfaceCard
-      className='relative w-full max-w-[26rem] px-5 pb-5'
+      className={[
+        'relative w-full max-w-[26rem] px-5 pb-5',
+        open ? 'invisible' : ''
+      ].join(' ')}
       style={{ paddingTop }}
       aria-label={stripParens(name)}
+      aria-hidden={!!open}
     >
       {/* Commander peeks */}
       <div className='absolute inset-x-0 z-0 flex justify-center gap-4 items-start' style={{ top: 8, height: peekZone }}>
@@ -101,9 +106,10 @@ const CommanderBox: React.FC<CommanderBoxProps> = ({
         <span className='mx-2'>•</span>
         <span>Last: {formatDate(lastSeen) || '—'}</span>
       </div>
-      {/* Modal */}
-      <CardModal card={open} onClose={() => setOpen(null)} />
     </SurfaceCard>
+    {/* Modal */}
+    <CardModal card={open} onClose={() => setOpen(null)} />
+    </>
   )
 }
 

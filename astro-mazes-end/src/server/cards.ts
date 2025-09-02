@@ -25,27 +25,42 @@ type DbCardRow = {
   scryfall_uri: string | null
 }
 
-/** Load top EDH cards from DB and shape as Scryfall-like objects for MtgCard. */
+/**
+ * Load top cards using a performance-weighted score from core tables.
+ * Score blends: frequency + top finishes + standing + win rate.
+ */
 export async function loadCardsFromDb(limit = 12): Promise<DbUICard[]> {
   let rows = await queryDatabase<DbCardRow>(
     `
-      WITH ranked AS (
-        SELECT dc.card_name, COUNT(DISTINCT dc.deck_id) AS decks_included
+      WITH agg AS (
+        SELECT 
+          dc.card_name,
+          COUNT(DISTINCT dc.deck_id) AS decks_included,
+          COUNT(DISTINCT d.tournament_id) AS tournaments_seen,
+          AVG(d.win_rate) AS avg_win_rate_with_card,
+          AVG(CAST(d.standing AS REAL)) AS avg_standing_with_card,
+          COUNT(CASE WHEN d.standing <= 8 THEN 1 END) AS top8_with_card,
+          -- Weighted score: frequency + top finishes + standing+winrate influence
+          (
+            COUNT(DISTINCT dc.deck_id) * 0.5 +
+            COUNT(CASE WHEN d.standing <= 8 THEN 1 END) * 1.0 +
+            COALESCE((1.0 / AVG(CAST(d.standing AS REAL))) * COUNT(DISTINCT dc.deck_id), 0) * 0.3 +
+            COALESCE(AVG(d.win_rate), 0) * COUNT(DISTINCT dc.deck_id) * 0.2
+          ) AS score
         FROM deck_cards dc
         JOIN decks d ON d.deck_id = dc.deck_id
         WHERE d.has_decklist = 1 AND dc.deck_section != 'commander'
         GROUP BY dc.card_name
-        ORDER BY decks_included DESC
-        LIMIT ?
       )
       SELECT c.card_name, c.mana_cost, c.type_line, c.oracle_text, c.power, c.toughness,
              c.colors, c.color_identity, c.image_uris, c.layout, c.card_faces,
              c.artist, c.set_name,
              c.card_power, c.versatility, c.popularity, c.salt, c.price,
              c.scryfall_uri
-      FROM ranked r
-      JOIN cards c ON c.card_name = r.card_name
-      ORDER BY r.decks_included DESC
+      FROM agg a
+      JOIN cards c ON c.card_name = a.card_name
+      ORDER BY a.score DESC
+      LIMIT ?
     `,
     [limit]
   )

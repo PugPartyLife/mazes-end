@@ -72,7 +72,30 @@ type Row = {
 export async function loadTopCommanders(limit = 20) {
   const rows = await queryDatabase<Row>(
     `
-      SELECT tc.*, 
+      WITH agg AS (
+        SELECT 
+          d.commander_1 AS commander_name,
+          d.commander_2 AS partner_name,
+          COUNT(*) AS total_decks,
+          COUNT(DISTINCT d.tournament_id) AS tournaments_played,
+          AVG(d.win_rate) AS avg_win_rate,
+          AVG(CAST(d.standing AS REAL)) AS avg_standing,
+          COUNT(CASE WHEN d.standing <= 8 THEN 1 END) AS top_8_finishes,
+          COUNT(CASE WHEN d.standing <= 16 THEN 1 END) AS top_16_finishes,
+          MIN(COALESCE(t.start_date, d.created_at)) AS first_seen,
+          MAX(COALESCE(t.start_date, d.created_at)) AS last_seen,
+          (
+            COUNT(*) * 0.6 +
+            COALESCE((1.0 / AVG(CAST(d.standing AS REAL))) * COUNT(*), 0) * 0.4
+          ) AS popularity_score
+        FROM decks d
+        LEFT JOIN tournaments t ON t.tournament_id = d.tournament_id
+        WHERE d.has_decklist = 1
+          AND d.commander_1 IS NOT NULL AND TRIM(d.commander_1) <> ''
+        GROUP BY d.commander_1, d.commander_2
+        HAVING total_decks >= 5
+      )
+      SELECT agg.*, 
              -- Commander 1 card fields
              c1.mana_cost AS c1_mana_cost,
              c1.type_line AS c1_type_line,
@@ -113,10 +136,10 @@ export async function loadTopCommanders(limit = 20) {
              c2.salt AS c2_salt,
              c2.price AS c2_price,
              c2.scryfall_uri AS c2_scryfall_uri
-      FROM top_commanders tc
-      LEFT JOIN cards c1 ON c1.card_name = tc.commander_name
-      LEFT JOIN cards c2 ON c2.card_name = tc.partner_name
-      ORDER BY tc.top_8_finishes DESC
+      FROM agg
+      LEFT JOIN cards c1 ON c1.card_name = agg.commander_name
+      LEFT JOIN cards c2 ON c2.card_name = agg.partner_name
+      ORDER BY popularity_score DESC, top_8_finishes DESC
       LIMIT ?
     `,
     [limit]
