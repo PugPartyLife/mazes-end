@@ -193,6 +193,26 @@ export default function MtgCard ({
   const loyalty = fromFace<string>(card, faceIdx, 'loyalty', '')
   const artSrc = getArt(card, faceIdx)
 
+  // CardStats values from DB fields (fallbacks handled)
+  const toTen = (n: any) => {
+    const v = Number(n)
+    if (!isFinite(v) || isNaN(v)) return 0
+    if (v <= 10) return Math.max(0, Math.min(10, v))
+    if (v <= 100) return Math.max(0, Math.min(10, v / 10))
+    return 10
+  }
+  const priceToTen = (p: any) => {
+    const v = Number(p)
+    if (!isFinite(v) || v <= 0) return 0
+    const denom = Math.log(100 + 1)
+    return Math.max(0, Math.min(10, (Math.log(v + 1) / denom) * 10))
+  }
+  const statsPower = toTen((card as any).card_power)
+  const statsPopularity = toTen((card as any).popularity)
+  const statsSalt = toTen((card as any).salt)
+  const statsDifficulty = toTen((card as any).versatility)
+  const statsCost = priceToTen((card as any).price)
+
   const isLegendary = /\bLegendary\b/i.test(typeLine || '')
   const colors = useMemo(() => identityColors(card), [card])
 
@@ -229,7 +249,7 @@ export default function MtgCard ({
         {/* Top bar */}
         <div className='flex items-start justify-between gap-2 px-3 pt-2 pb-1'>
           <h3
-            className={`font-serif font-bold leading-tight truncate text-[clamp(0.95rem,2.6vw,1.125rem)] ${titleClass}`}
+            className={`font-serif font-bold leading-tight truncate text-[clamp(0.85rem,2.2vw,1rem)] ${titleClass}`}
           >
             {name}
           </h3>
@@ -264,11 +284,11 @@ export default function MtgCard ({
               <CardStats
                 size={88}
                 values={{
-                  power: 7,
-                  cost: 6,
-                  popularity: 6,
-                  difficulty: 8,
-                  salt: 5
+                  power: statsPower,
+                  cost: statsCost,
+                  popularity: statsPopularity,
+                  difficulty: statsDifficulty,
+                  salt: statsSalt
                 }}
                 max={10}
                 rings={4}

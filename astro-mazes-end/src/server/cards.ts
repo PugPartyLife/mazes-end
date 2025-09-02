@@ -15,6 +15,11 @@ type DbCardRow = {
   card_faces: string | null // JSON
   artist: string | null
   set_name: string | null
+  card_power: number | null
+  versatility: number | null
+  popularity: number | null
+  salt: number | null
+  price: number | null
   scryfall_uri: string | null
 }
 
@@ -42,7 +47,9 @@ export async function loadCardsFromDb(limit = 12): Promise<any[]> {
       )
       SELECT c.card_name, c.mana_cost, c.type_line, c.oracle_text, c.power, c.toughness,
              c.colors, c.color_identity, c.image_uris, c.layout, c.card_faces,
-             c.artist, c.set_name, c.scryfall_uri
+             c.artist, c.set_name,
+             c.card_power, c.versatility, c.popularity, c.salt, c.price,
+             c.scryfall_uri
       FROM ranked r
       JOIN cards c ON c.card_name = r.card_name
       ORDER BY r.decks_included DESC
@@ -54,7 +61,9 @@ export async function loadCardsFromDb(limit = 12): Promise<any[]> {
     rows = await queryDatabase<DbCardRow>(
       `SELECT card_name, mana_cost, type_line, oracle_text, power, toughness,
               colors, color_identity, image_uris, layout, card_faces,
-              artist, set_name, scryfall_uri
+              artist, set_name,
+              card_power, versatility, popularity, salt, price,
+              scryfall_uri
        FROM cards WHERE image_uris IS NOT NULL ORDER BY COALESCE(price_usd, 0) DESC LIMIT ?`,
       [limit]
     )
@@ -84,6 +93,12 @@ export async function loadCardsFromDb(limit = 12): Promise<any[]> {
       card_faces,
       artist: r.artist || undefined,
       set_name: r.set_name || undefined,
+      // CardStats-related fields from DB
+      card_power: r.card_power ?? undefined,
+      versatility: r.versatility ?? undefined,
+      popularity: r.popularity ?? undefined,
+      salt: r.salt ?? undefined,
+      price: r.price ?? undefined,
       scryfall_uri: r.scryfall_uri || undefined
     }
   })

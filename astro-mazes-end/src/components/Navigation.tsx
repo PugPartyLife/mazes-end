@@ -23,8 +23,9 @@ export default function Navigation(): React.JSX.Element {
   const navItems: NavItem[] = [
     { name: 'Home', href: '/' },
     { name: 'Commanders', href: '/commanders' },
+    { name: 'Decks', href: '/decks' },
     { name: 'Cards and Combos', href: '/cards' },
-    { name: 'Tournaments', href: '#tournaments' },
+    { name: 'Tournaments', href: '/tournaments' },
   ];
 
   return (

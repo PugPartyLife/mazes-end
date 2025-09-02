@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import MtgCard from './MtgCard'
 import type { DbUICard } from '../types'
 import ManaText from './ManaText'
+import WinRateBar from './WinRateBar'
 
 type Color = 'W' | 'U' | 'B' | 'R' | 'G'
 
@@ -237,7 +238,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
                 target='_blank'
                 rel='noopener noreferrer'
                 title={name}
-                className='min-w-0 font-semibold leading-snug text-sm sm:text-[15px] hover:opacity-90 hover:underline underline-offset-2'
+                className='min-w-0 font-semibold leading-snug text-[13px] sm:text-[14px] hover:opacity-90 hover:underline underline-offset-2'
                 style={{
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
@@ -245,7 +246,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
                   overflow: 'hidden'
                 }}
               >
-                {name}
+                {stripParens(name)}
               </a>
               {pips && (
                 <div className='shrink-0 translate-y-0.5'>
@@ -293,23 +294,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 
           {/* Stats */}
           <div className='grid grid-cols-2 gap-4 text-neutral-200'>
-            <div className='col-span-2'>
-              <div className='flex items-end justify-between'>
-                <span className='text-[11px] uppercase tracking-wide text-neutral-400'>
-                  Winrate
-                </span>
-                <span className='text-[11px] font-semibold'>{winrate}%</span>
-              </div>
-              <div className='mt-1 h-2 w-full rounded-full bg-neutral-800 overflow-hidden'>
-                <div
-                  className='h-full rounded-full bg-emerald-500'
-                  style={{
-                    width: `${Math.min(100, Math.max(0, winrate))}%`,
-                    transition: 'width .35s ease'
-                  }}
-                />
-              </div>
-            </div>
+            <WinRateBar percent={winrate} className='col-span-2' />
 
             <div>
               <div className='text-[11px] uppercase tracking-wide text-neutral-400'>
@@ -376,3 +361,8 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 }
 
 export default DeckBox
+
+function stripParens (s: string): string {
+  if (!s) return s
+  return s.replace(/^\(\s*/, '').replace(/\s*\)$/, '')
+}
