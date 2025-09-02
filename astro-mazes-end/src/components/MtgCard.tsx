@@ -43,9 +43,26 @@ function parseJsonMaybe<T = any> (value: any): T | undefined {
 }
 
 function getFaces (card: DbUICard): any[] {
+  // Prefer explicit faces if present
   if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
   const parsed = parseJsonMaybe<any[]>(card?.card_faces)
-  return Array.isArray(parsed) ? parsed : []
+  if (Array.isArray(parsed)) return parsed
+
+  // Fallback: infer dual faces from flattened image_uris or split name or layout
+  const uris = parseJsonMaybe<any>(card?.image_uris)
+  const hasF0 = !!pickFlattenedFaceUri(uris, 0)
+  const hasF1 = !!pickFlattenedFaceUri(uris, 1)
+  const nameParts = typeof card?.name === 'string' ? card.name.split(' // ') : []
+  const looksDual = /transform|modal_dfc|double_faced|split|adventure/i.test(
+    (card as any)?.layout || ''
+  )
+  if (hasF1 || (hasF0 && looksDual) || nameParts.length > 1) {
+    return [
+      { name: nameParts[0] || card?.name },
+      { name: nameParts[1] || '' }
+    ]
+  }
+  return []
 }
 
 /** First available art image for a given face or whole card */

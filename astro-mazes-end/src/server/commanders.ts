@@ -1,5 +1,6 @@
 import { queryDatabase } from '../lib/db/sqlite'
 import type { DbUICard } from '../types'
+import { mapCardFromRow } from './cardRowToUi'
 
 type Color = 'W' | 'U' | 'B' | 'R' | 'G'
 
@@ -124,52 +125,14 @@ export async function loadTopCommanders(limit = 20) {
   return rows.map(r => {
     const commanders: DbUICard[] = []
     if (r.commander_name) {
-      commanders.push({
-        name: r.commander_name,
-        mana_cost: r.c1_mana_cost || undefined,
-        type_line: r.c1_type_line || undefined,
-        oracle_text: r.c1_oracle_text || undefined,
-        power: r.c1_power || undefined,
-        toughness: r.c1_toughness || undefined,
-        colors: r.c1_colors ? JSON.parse(r.c1_colors) : undefined,
-        color_identity: r.c1_color_identity ? JSON.parse(r.c1_color_identity) : undefined,
-        image_uris: r.c1_image_uris ? JSON.parse(r.c1_image_uris) : undefined,
-        layout: r.c1_layout || undefined,
-        card_faces: r.c1_card_faces ? JSON.parse(r.c1_card_faces) : undefined,
-        flavor_text: r.c1_flavor_text || undefined,
-        artist: r.c1_artist || undefined,
-        set_name: r.c1_set_name || undefined,
-        card_power: r.c1_card_power ?? undefined,
-        versatility: r.c1_versatility ?? undefined,
-        popularity: r.c1_popularity ?? undefined,
-        salt: r.c1_salt ?? undefined,
-        price: r.c1_price ?? undefined,
-        scryfall_uri: r.c1_scryfall_uri || undefined,
-      })
+      commanders.push(
+        mapCardFromRow(r, { prefix: 'c1_', nameField: 'commander_name' })
+      )
     }
     if (r.partner_name) {
-      commanders.push({
-        name: r.partner_name,
-        mana_cost: r.c2_mana_cost || undefined,
-        type_line: r.c2_type_line || undefined,
-        oracle_text: r.c2_oracle_text || undefined,
-        power: r.c2_power || undefined,
-        toughness: r.c2_toughness || undefined,
-        colors: r.c2_colors ? JSON.parse(r.c2_colors) : undefined,
-        color_identity: r.c2_color_identity ? JSON.parse(r.c2_color_identity) : undefined,
-        image_uris: r.c2_image_uris ? JSON.parse(r.c2_image_uris) : undefined,
-        layout: r.c2_layout || undefined,
-        card_faces: r.c2_card_faces ? JSON.parse(r.c2_card_faces) : undefined,
-        flavor_text: r.c2_flavor_text || undefined,
-        artist: r.c2_artist || undefined,
-        set_name: r.c2_set_name || undefined,
-        card_power: r.c2_card_power ?? undefined,
-        versatility: r.c2_versatility ?? undefined,
-        popularity: r.c2_popularity ?? undefined,
-        salt: r.c2_salt ?? undefined,
-        price: r.c2_price ?? undefined,
-        scryfall_uri: r.c2_scryfall_uri || undefined,
-      })
+      commanders.push(
+        mapCardFromRow(r, { prefix: 'c2_', nameField: 'partner_name' })
+      )
     }
 
     const colors: Color[] = []

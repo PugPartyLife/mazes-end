@@ -202,37 +202,6 @@ export interface ParsedImageUris {
   [key: string]: string | undefined // For multi-face cards: face_0_small, face_1_small, etc.
 }
 
-// Parsed card shape used by UI components (MtgCard, DeckBox commanders)
-export interface DbUICard {
-  name: string
-  mana_cost?: string
-  type_line?: string
-  flavor_text?: string
-  card_power?: number
-  oracle_text?: string
-  power?: string
-  toughness?: string
-  colors?: string[]
-  color_identity?: string[]
-  image_uris?: ParsedImageUris
-  layout?: string
-  card_faces?: any[]
-  artist?: string
-  set_name?: string
-}
-
-export interface ParsedCardFace {
-  name: string
-  mana_cost: string
-  type_line: string
-  oracle_text: string
-  power?: string
-  toughness?: string
-  colors: string[]
-  flavor_text?: string
-  image_uris?: ParsedImageUris
-}
-
 // Enum types to match schema constraints
 export type PlayStyle = 'Aggro' | 'Control' | 'Combo' | 'Midrange' | 'Casual'
 export type WinConditionPref = 'Combat' | 'Combo' | 'Alt Win' | 'Value' | 'Any'

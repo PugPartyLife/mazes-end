@@ -1,8 +1,12 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import MtgCard from './MtgCard'
 import type { DbUICard } from '../types'
-import ManaText from './ManaText'
 import WinRateBar from './WinRateBar'
+import CommanderNamePills from './CommanderNamePills'
+import CommanderPeek from './CommanderPeek'
+import CardModal from './CardModal'
+import { stripParens } from '../lib/ui/text'
+import { normalizeWinratePercent } from '../lib/ui/winrate'
 
 type Color = 'W' | 'U' | 'B' | 'R' | 'G'
 
@@ -31,91 +35,11 @@ export type DeckBoxProps = {
   onOpenCard: (card: DbUICard) => void
 }
 
-const COLOR_TINT: Record<Color | 'C', string> = {
-  W: '#F8F6D8',
-  U: '#C1D7E9',
-  B: '#CAC5C0',
-  R: '#E49977',
-  G: '#A3C095',
-  C: '#D1D5DB'
-}
+// color helpers and pips handled by CommanderNamePills
 
-function headerGradient (colors?: Color[]) {
-  const cols = (colors?.length ? colors : ['C']) as (Color | 'C')[]
-  if (cols.length === 1) {
-    const c = COLOR_TINT[cols[0]]
-    return { backgroundImage: `linear-gradient(180deg, ${c}, ${c})` }
-  }
-  const step = 100 / (cols.length - 1)
-  const parts = cols
-    .map((c, i) => `${COLOR_TINT[c]} ${Math.round(i * step)}%`)
-    .join(', ')
-  return { backgroundImage: `linear-gradient(90deg, ${parts})` }
-}
+// gradient + color derivation handled by CommanderNamePills
 
-function pipsText (colors?: Color[]) {
-  if (!colors || colors.length === 0) return ''
-  return colors.map(c => `{${c}}`).join('')
-}
-
-function deriveColorsFromCommanders (commanders: DbUICard[]): Color[] | undefined {
-  const set = new Set<Color>()
-  for (const c of commanders || []) {
-    const ids: string[] = c?.color_identity || c?.colors || []
-    for (const k of ids)
-      if (['W', 'U', 'B', 'R', 'G'].includes(k)) set.add(k as Color)
-  }
-  return set.size ? (Array.from(set) as Color[]) : undefined
-}
-
-/** Shallow “peek” of a real MtgCard */
-function CommanderPeek ({
-  card,
-  width,
-  height,
-  tilt,
-  onOpen,
-  className,
-  maskRatio = 0.78 // how much of the height remains visible (0..1)
-}: {
-  card: DbUICard
-  width: number
-  height: number
-  tilt: number
-  onOpen: (c: DbUICard) => void
-  className?: string
-  maskRatio?: number
-}) {
-  return (
-    <div
-      role='button'
-      tabIndex={0}
-      aria-label={`Open ${card?.name ?? 'card'}`}
-      onClick={() => onOpen(card)}
-      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onOpen(card)}
-      className={`relative ${className ?? ''}`}
-      style={{ width, height }}
-    >
-      <div
-        className='absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent'
-        style={{
-          transform: `rotate(${tilt}deg)`,
-          // show only the top portion of the real card; fade at the bottom
-          WebkitMaskImage: `linear-gradient(180deg, #000 ${
-            maskRatio * 100
-          }%, rgba(0,0,0,0) 100%)`,
-          maskImage: `linear-gradient(180deg, black ${
-            maskRatio * 100
-          }%, transparent 100%)`
-        }}
-      >
-        <div className='w-full cursor-pointer hover:brightness-130'>
-          <MtgCard card={card} />
-        </div>
-      </div>
-    </div>
-  )
-}
+// Use shared CommanderPeek component
 
 const DeckBox: React.FC<DeckBoxProps> = ({
   name,
@@ -138,28 +62,11 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   peekHeight = 160
 }) => {
   const [open, setOpen] = useState<DbUICard | null>(null)
-  const closeBtnRef = useRef<HTMLButtonElement | null>(null)
 
   const safeCommanders = Array.isArray(commanders) ? commanders.slice(0, 2) : []
-  const derivedColors = colors?.length
-    ? colors
-    : deriveColorsFromCommanders(safeCommanders)
-  const pips = pipsText(derivedColors)
-  const gradientStyle = useMemo(
-    () => headerGradient(derivedColors),
-    [derivedColors]
-  )
 
   // Normalize winrate (prefer DB avg, fallback to record)
-  const games = wins + losses + draws
-  const fromRecord = games > 0 ? (wins / games) * 100 : undefined
-  const normalizedAvg =
-    typeof avgWinRate === 'number'
-      ? avgWinRate <= 1
-        ? avgWinRate * 100
-        : avgWinRate
-      : undefined
-  const winrate = Math.round(normalizedAvg ?? fromRecord ?? 0)
+  const winrate = normalizeWinratePercent(avgWinRate, wins, losses, draws)
 
   // Reserve enough vertical space for the visible slice, plus tilt/shadow padding
   const MASK_RATIO = 0.78 // must match CommanderPeek default
@@ -175,16 +82,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
     [onOpenCard]
   )
 
-  // ESC to close
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(null)
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  useEffect(() => {
-    if (open) closeBtnRef.current?.focus()
-  }, [open])
+  // Modal handles ESC & focus
 
   return (
     <>
@@ -227,33 +125,22 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 
         {/* CONTENT (higher z-index so it always sits above the peeks) */}
         <div className='relative z-[1]'>
-          {/* Deck name (gradient + pips) */}
-          <div
-            className='rounded-xl border border-neutral-700/60 px-3 py-2 mb-3 text-neutral-900 shadow-inner'
-            style={gradientStyle}
-          >
-            <div className='flex items-start justify-between gap-2'>
-              <a
-                href={deckUrl}
-                target='_blank'
-                rel='noopener noreferrer'
-                title={name}
-                className='min-w-0 font-semibold leading-snug text-[13px] sm:text-[14px] hover:opacity-90 hover:underline underline-offset-2'
-                style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden'
-                }}
-              >
-                {stripParens(name)}
-              </a>
-              {pips && (
-                <div className='shrink-0 translate-y-0.5'>
-                  <ManaText text={pips} size={16} gap={2} inline />
-                </div>
-              )}
-            </div>
+          {/* Commander name pills (one per commander, truncated for layout) */}
+          <div className='mb-3'>
+            <CommanderNamePills commanders={safeCommanders} onOpen={handleOpen} />
+          </div>
+
+          {/* Deck name link (small, neutral) */}
+          <div className='mb-4'>
+            <a
+              href={deckUrl}
+              target='_blank'
+              rel='noopener noreferrer'
+              title={name}
+              className='text-[13px] sm:text-[14px] font-medium text-neutral-100 hover:opacity-90 hover:underline underline-offset-2'
+            >
+              {stripParens(name)}
+            </a>
           </div>
 
           {/* Tournament (neutral pill, unchanged) */}
@@ -328,41 +215,9 @@ const DeckBox: React.FC<DeckBoxProps> = ({
       </div>
 
       {/* Modal with full MtgCard */}
-      {open && (
-        <div className='fixed inset-0 z-[70]'>
-          <div
-            className='absolute inset-0 bg-black/40 backdrop-blur-sm'
-            onClick={() => setOpen(null)}
-            aria-hidden='true'
-          />
-          <div className='absolute inset-0 grid place-items-center p-4'>
-            <div
-              role='dialog'
-              aria-modal='true'
-              aria-label={open?.name ?? 'Card'}
-              className='relative w-full max-w-[min(92vw,32rem)]'
-            >
-              <button
-                ref={closeBtnRef}
-                onClick={() => setOpen(null)}
-                className='absolute -top-10 right-0 text-neutral-200 hover:text-white text-sm cursor-pointer'
-              >
-                ✕ Close
-              </button>
-              <div className='rounded-2xl overflow-hidden'>
-                <MtgCard card={open} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CardModal card={open} onClose={() => setOpen(null)} />
     </>
   )
 }
 
 export default DeckBox
-
-function stripParens (s: string): string {
-  if (!s) return s
-  return s.replace(/^\(\s*/, '').replace(/\s*\)$/, '')
-}
