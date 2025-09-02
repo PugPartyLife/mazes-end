@@ -3,18 +3,72 @@ import Layout from "../layouts/Layout.astro";
 import Navigation from "../components/Navigation.jsx";
 import Footer from "../components/Footer.jsx";
 import PageHeader from "../components/PageHeader";
+import TournamentCard from "../components/TournamentCard";
+import { loadTournaments, loadTournamentDeckBoxes } from "../server/tournaments";
+
+const limit = Number(Astro.url.searchParams.get('limit') ?? 10);
+const tournaments = await loadTournaments(limit, 0);
+const decksByTid = new Map<string, any[]>();
+for (const t of tournaments) {
+  const decks = await loadTournamentDeckBoxes(t.id);
+  decksByTid.set(t.id, decks);
+}
 ---
 
 <Layout title="The Maze's End - Tournaments">
-  <div class="min-h-screen bg-gray-900 p-6 sm:p-10 lg:p-16">
+  <div class="min-h-screen bg-gray-900 bg-vignette p-16">
     <Navigation client:load />
     <div class="mx-auto max-w-7xl">
       <PageHeader client:load title="Tournaments" />
-      <div class="rounded-xl border border-neutral-700/60 bg-neutral-800/60 text-neutral-200 p-6">
-        <p class="text-sm">Tournament browser coming soon. We’ll list recent events, sizes, locations, and links to decks.</p>
-      </div>
     </div>
+
+    <div class="mx-auto max-w-7xl space-y-6">
+      {tournaments.map((t) => (
+        <TournamentCard client:load
+          id={t.id}
+          name={t.name}
+          startDate={t.startDate}
+          totalPlayers={t.totalPlayers}
+          topCut={t.topCut}
+          decks={decksByTid.get(t.id) || []}
+        />
+      ))}
+    </div>
+
+    <div id="load-more-anchor" class="mt-8 flex justify-center">
+      <a id="load-more-btn" href={`?limit=${limit + 10}`} class="px-4 py-2 rounded-lg ring-1 ring-neutral-700 text-neutral-200 hover:bg-neutral-800">Load more</a>
+    </div>
+    <script>
+      const KEY = 'me:scroll-keep-last'
+      const btn = document.getElementById('load-more-btn')
+      btn?.addEventListener('click', () => {
+        const cards = document.querySelectorAll('.tournament-card')
+        const last = cards[cards.length - 1]
+        if (last) {
+          const rect = last.getBoundingClientRect()
+          const data = { id: last.id, top: rect.top }
+          sessionStorage.setItem(KEY, JSON.stringify(data))
+        }
+      })
+
+      // Restore scroll so the last pre-existing tournament stays put
+      const raw = sessionStorage.getItem(KEY)
+      if (raw) {
+        sessionStorage.removeItem(KEY)
+        try {
+          const { id, top } = JSON.parse(raw)
+          const el = document.getElementById(id)
+          if (el) {
+            requestAnimationFrame(() => {
+              const curTop = el.getBoundingClientRect().top
+              const delta = curTop - top
+              window.scrollBy(0, delta)
+            })
+          }
+        } catch {}
+      }
+    </script>
     <Footer client:load />
   </div>
+  
 </Layout>
-
