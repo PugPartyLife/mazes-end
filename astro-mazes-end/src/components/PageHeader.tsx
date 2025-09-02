@@ -7,13 +7,17 @@ export default function PageHeader ({
   subtitle,
   onSearch,
   colors = ['W','U','B','R','G'],
-  onToggleColor
+  onToggleColor,
+  surface = true,
+  showReset = true
 }: {
   title: string
   subtitle?: string
   onSearch?: (q: string) => void
   colors?: ColorId[]
   onToggleColor?: (c: ColorId) => void
+  surface?: boolean
+  showReset?: boolean
 }) {
   const [q, setQ] = useState('')
   const [sub, setSub] = useState<string | undefined>(subtitle)
@@ -40,6 +44,19 @@ export default function PageHeader ({
       window.dispatchEvent(e)
     }
   }
+
+  const resetFilters = () => {
+    setQ('')
+    const empty = new Set<ColorId>()
+    setSelected(empty)
+    onSearch?.('')
+    if (!onSearch && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('filter:search', { detail: { q: '' } }))
+    }
+    if (!onToggleColor && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('filter:colors', { detail: { colors: [] } }))
+    }
+  }
   return (
     <div className='mx-auto max-w-7xl mb-6 sm:mb-8'>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
@@ -50,7 +67,7 @@ export default function PageHeader ({
           ) : null}
         </div>
         <div className='flex items-center gap-3 w-full sm:w-auto'>
-          <div className='flex items-center gap-2'>
+          <div className={[surface ? 'rounded-2xl ring-1 ring-neutral-700/50 bg-neutral-900/60 px-3 py-2' : '', 'flex items-center gap-2'].join(' ')}>
             {colors.map(c => (
               <button
                 key={c}
@@ -80,6 +97,16 @@ export default function PageHeader ({
               className='w-full sm:w-72 rounded-lg bg-neutral-800 text-neutral-100 placeholder-neutral-400 px-3 py-2 ring-1 ring-neutral-700 focus:outline-none focus:ring-neutral-500'
             />
           </div>
+          {showReset && (
+            <button
+              type='button'
+              onClick={resetFilters}
+              className='hidden sm:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-neutral-200 ring-1 ring-neutral-600 hover:bg-neutral-800'
+              title='Reset filters'
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
     </div>

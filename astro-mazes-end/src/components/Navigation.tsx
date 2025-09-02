@@ -29,7 +29,7 @@ export default function Navigation(): React.JSX.Element {
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg' : 'bg-transparent'
+      scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-white/10' : 'bg-transparent border-b border-transparent'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Keep items centered; add brand at left for identity */}
@@ -37,10 +37,14 @@ export default function Navigation(): React.JSX.Element {
           {/* Brand */}
           <a
             href="/"
-            className={`hidden md:block absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide ${scrolled ? 'text-me-yellow' : 'text-me-yellow'}`}
+            className={`hidden md:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide ${scrolled ? 'text-me-yellow' : 'text-me-yellow'}`}
             aria-label="The Maze's End Home"
           >
-            The Maze's End
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="13" rx="2" ry="2"/>
+              <path d="M3 10h18M12 7v13M8 10v10M16 10v10"/>
+            </svg>
+            Maze's End
           </a>
           {/* Desktop Navigation - removed ml-10 to center properly */}
           <div className="hidden md:block">
@@ -55,8 +59,8 @@ export default function Navigation(): React.JSX.Element {
                     item.disabled 
                       ? 'text-gray-400 cursor-not-allowed' 
                       : scrolled 
-                        ? 'text-gray-100 hover:text-gray-300' 
-                        : 'text-white hover:text-gray-300'
+                        ? 'text-gray-200 hover:text-gray-300' 
+                        : 'text-gray-100 hover:text-gray-300'
                   }`}
                   onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 >
