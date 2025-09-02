@@ -26,21 +26,15 @@ const cards = await loadCardsFromDb(12);
         </div>
       ))}
     </div>
-    <script>
-      const grid = document.getElementById('card-grid');
-      function applyFilters({ q, colors }) {
-        const term = (q || '').toLowerCase().trim();
-        const selected = new Set(colors || []);
-        for (const el of grid.querySelectorAll('.card-item')) {
-          const name = (el.getAttribute('data-name') || '').toLowerCase();
-          const cset = new Set((el.getAttribute('data-colors') || '').split(''));
-          const matchesSearch = !term || name.includes(term);
-          const matchesColors = selected.size === 0 || Array.from(selected).every(c => cset.has(c));
-          el.style.display = (matchesSearch && matchesColors) ? '' : 'none';
-        }
-      }
-      window.addEventListener('filter:search', (e) => { window.__searchTerm = e.detail?.q; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
-      window.addEventListener('filter:colors', (e) => { window.__selectedColors = e.detail?.colors || []; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+    <script type="module">
+      import { setupManaFilter } from '/src/scripts/manaFilter.ts';
+      setupManaFilter({
+        gridSelector: '#card-grid',
+        itemSelector: '.card-item',
+        textAttrs: ['data-name'],
+        colorsAttr: 'data-colors',
+        colorMode: 'and'
+      });
     </script>
     
     <Footer client:load />

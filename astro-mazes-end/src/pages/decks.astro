@@ -18,31 +18,30 @@ const decks = await loadTopDeckBoxes(15);
     <div class="mx-auto max-w-7xl">
       <PageHeader client:load title="Top Decks" subtitle="Recent Events" />
       <div id="deck-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-        {decks.map((d) => (
-          <div class="deck-item" data-name={d.name} data-player={d.player} data-tournament={d.tournamentName} data-colors={(d.colors || []).join("") }>
-            <DeckBox client:visible {...d} />
-          </div>
-        ))}
+        {decks.map((d) => {
+          const fallbackColors = Array.from(new Set([
+            ...((d.commanders?.[0]?.color_identity || d.commanders?.[0]?.colors) ?? []),
+            ...((d.commanders?.[1]?.color_identity || d.commanders?.[1]?.colors) ?? [])
+          ].filter((c) => typeof c === 'string' && 'WUBRG'.includes(c as string)))) as string[];
+          const colorAttr = (d.colors && d.colors.length ? d.colors : fallbackColors).join("");
+          return (
+            <div class="deck-item" data-name={d.name} data-player={d.player} data-tournament={d.tournamentName} data-colors={colorAttr}>
+              <DeckBox client:visible {...d} />
+            </div>
+          );
+        })}
       </div>
     </div>
 
-    <script>
-      const grid = document.getElementById('deck-grid');
-      function applyFilters({ q, colors }) {
-        const term = (q || '').toLowerCase().trim();
-        const selected = new Set(colors || []);
-        for (const el of grid.querySelectorAll('.deck-item')) {
-          const name = (el.getAttribute('data-name') || '').toLowerCase();
-          const player = (el.getAttribute('data-player') || '').toLowerCase();
-          const tourn = (el.getAttribute('data-tournament') || '').toLowerCase();
-          const deckColors = new Set((el.getAttribute('data-colors') || '').split(''));
-          const matchesSearch = !term || name.includes(term) || player.includes(term) || tourn.includes(term);
-          const matchesColors = selected.size === 0 || Array.from(selected).every(c => deckColors.has(c));
-          el.style.display = (matchesSearch && matchesColors) ? '' : 'none';
-        }
-      }
-      window.addEventListener('filter:search', (e) => { window.__searchTerm = e.detail?.q; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
-      window.addEventListener('filter:colors', (e) => { window.__selectedColors = e.detail?.colors || []; applyFilters({ q: window.__searchTerm, colors: window.__selectedColors }); });
+    <script type="module">
+      import { setupManaFilter } from '/src/scripts/manaFilter.ts';
+      setupManaFilter({
+        gridSelector: '#deck-grid',
+        itemSelector: '.deck-item',
+        textAttrs: ['data-name','data-player','data-tournament'],
+        colorsAttr: 'data-colors',
+        colorMode: 'and'
+      });
     </script>
 
     <Footer client:load />
