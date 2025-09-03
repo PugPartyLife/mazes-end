@@ -29,6 +29,9 @@ export const builder = new SchemaBuilder<{
     PlayerHistory: PlayerHistory
     DatabaseSummary: DatabaseSummary
     ImageUris: ParsedImageUris
+    CardWithStats: any
+    DeckBoxData: any
+    DeckMetaData: any
   }
 }>({
   plugins: [DataloaderPlugin],
@@ -57,6 +60,18 @@ builder.objectType('TopCommander', {
         const results = await queryDatabase<Card>(
           'SELECT * FROM cards WHERE card_name = ?',
           [parent.commander_name]
+        )
+        return results[0] || null
+      }
+    }),
+    partnerCard: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        if (!parent.partner_name) return null
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.partner_name]
         )
         return results[0] || null
       }
@@ -251,32 +266,54 @@ builder.objectType('DeckCard', {
 })
 
 // ImageUris type
+function coerceImageObj(parent: any): any {
+  if (!parent) return {}
+  if (typeof parent === 'string') {
+    try { return JSON.parse(parent) } catch { return {} }
+  }
+  return parent
+}
+
 builder.objectType('ImageUris', {
   fields: (t) => ({
     small: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.small
+      resolve: (parent) => coerceImageObj(parent).small ?? null
     }),
     normal: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.normal
+      resolve: (parent) => coerceImageObj(parent).normal ?? null
     }),
     large: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.large
+      resolve: (parent) => coerceImageObj(parent).large ?? null
     }),
     png: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.png
+      resolve: (parent) => coerceImageObj(parent).png ?? null
     }),
     artCrop: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.art_crop
+      resolve: (parent) => coerceImageObj(parent).art_crop ?? null
     }),
     borderCrop: t.string({ 
       nullable: true,
-      resolve: (parent) => parent.border_crop
+      resolve: (parent) => coerceImageObj(parent).border_crop ?? null
     }),
+    // Face 0
+    face0Small: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_small`] ?? null }),
+    face0Normal: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_normal`] ?? null }),
+    face0Large: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_large`] ?? null }),
+    face0Png: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_png`] ?? null }),
+    face0ArtCrop: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_art_crop`] ?? null }),
+    face0BorderCrop: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_0_border_crop`] ?? null }),
+    // Face 1
+    face1Small: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_small`] ?? null }),
+    face1Normal: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_normal`] ?? null }),
+    face1Large: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_large`] ?? null }),
+    face1Png: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_png`] ?? null }),
+    face1ArtCrop: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_art_crop`] ?? null }),
+    face1BorderCrop: t.string({ nullable: true, resolve: (p) => coerceImageObj(p)[`face_1_border_crop`] ?? null }),
   }),
 })
 
@@ -320,6 +357,8 @@ builder.objectType('Card', {
     oracleText: t.exposeString('oracle_text', { nullable: true }),
     power: t.exposeString('power', { nullable: true }),
     toughness: t.exposeString('toughness', { nullable: true }),
+    layout: t.exposeString('layout', { nullable: true }),
+    cardFaces: t.exposeString('card_faces', { nullable: true }),
     colors: t.field({
       type: ['String'],
       resolve: (parent) => parseColors(parent.colors)
@@ -335,6 +374,7 @@ builder.objectType('Card', {
       resolve: (parent) => parent.price_usd
     }),
     setCode: t.exposeString('set_code', { nullable: true }),
+    setName: t.exposeString('set_name', { nullable: true }),
     artist: t.exposeString('artist', { nullable: true }),
     scryfallUri: t.exposeString('scryfall_uri', { nullable: true }),
     imageUris: t.field({
@@ -369,6 +409,19 @@ builder.objectType('Card', {
 
 builder.queryType({
   fields: (t) => ({
+    // Cards page: aggregated performance stats + card
+    cardsWithStats: t.field({
+      type: ['CardWithStats'],
+      args: {
+        limit: t.arg.int({ defaultValue: 24 }),
+        offset: t.arg.int({ defaultValue: 0 }),
+        q: t.arg.string({ required: false })
+      },
+      resolve: async (_, { limit, offset, q }) => {
+        const { sql, params } = queries.cardsWithStats(limit!, offset!, q ?? undefined)
+        return queryDatabase<any>(sql, params)
+      }
+    }),
     // Top commanders using the view
     topCommanders: t.field({
       type: ['TopCommander'],
@@ -567,6 +620,44 @@ builder.queryType({
       },
     }),
 
+    // Deck meta details for Deck page
+    deckDetails: t.field({
+      type: 'DeckMetaData',
+      nullable: true,
+      args: {
+        deckId: t.arg.string({ required: true })
+      },
+      resolve: async (_, { deckId }) => {
+        const { sql, params } = queries.deckMeta(deckId!)
+        const rows = await queryDatabase<any>(sql, params)
+        return rows?.[0] || null
+      }
+    }),
+
+    // Recent decks for home/decks page
+    recentDeckBoxes: t.field({
+      type: ['DeckBoxData'],
+      args: {
+        limit: t.arg.int({ defaultValue: 15 })
+      },
+      resolve: async (_, { limit }) => {
+        const perTournament = 3
+        const tournamentsLimit = Math.max(5, Math.ceil((limit ?? 15) / perTournament) + 2)
+        const { sql, params } = queries.recentDeckBoxes(tournamentsLimit, limit ?? 15)
+        return queryDatabase<any>(sql, params)
+      }
+    }),
+
+    // Tournament deck boxes
+    tournamentDeckBoxes: t.field({
+      type: ['DeckBoxData'],
+      args: { tournamentId: t.arg.string({ required: true }) },
+      resolve: async (_, { tournamentId }) => {
+        const { sql, params } = queries.tournamentDeckBoxes(tournamentId!)
+        return queryDatabase<any>(sql, params)
+      }
+    }),
+
     // Cards by type
     cardsByType: t.field({
       type: ['Card'],
@@ -584,4 +675,134 @@ builder.queryType({
   }),
 })
 
+// --------------
+// Extra object types used by the new queries
+
+// Shape returned from queries.cardsWithStats
+builder.objectType('CardWithStats', {
+  fields: (t) => ({
+    // aggregated stats
+    decksIncluded: t.int({ resolve: (p) => Number(p.decks_included || 0) }),
+    tournamentsSeen: t.int({ resolve: (p) => Number(p.tournaments_seen || 0) }),
+    top8WithCard: t.int({ resolve: (p) => Number(p.top8_with_card || 0) }),
+    winsWithCard: t.int({ resolve: (p) => Number(p.wins_with_card || 0) }),
+    lossesWithCard: t.int({ resolve: (p) => Number(p.losses_with_card || 0) }),
+    drawsWithCard: t.int({ resolve: (p) => Number(p.draws_with_card || 0) }),
+    avgWinRateWithCard: t.float({ resolve: (p) => Number(p.avg_win_rate_with_card || 0) }),
+    avgStandingWithCard: t.float({ resolve: (p) => Number(p.avg_standing_with_card || 0) }),
+    inclusionRate: t.float({ resolve: (p) => Math.max(0, Math.min(1, Number(p.inclusion_rate || 0))) }),
+    score: t.float({ resolve: (p) => Number(p.score || 0) }),
+    // card fields (from joined c.*)
+    card: t.field({
+      type: 'Card',
+      resolve: (p) => p
+    })
+  })
+})
+
+// (moved) Build the schema after all types are declared — see end of file
+
+// Parse deck colors string like "WURG" into ["W","U","R","G"]
+function parseDeckColorsString(colors: string | null | undefined): string[] {
+  if (!colors) return []
+  const set = new Set<string>()
+  for (const ch of String(colors).toUpperCase()) {
+    if ('WUBRG'.includes(ch)) set.add(ch)
+  }
+  return Array.from(set)
+}
+
+// Commander cards from row with c1_/c2_ prefixes
+function mapCommanderCards(row: any): any[] {
+  const out: any[] = []
+  if (row.c1_name) {
+    out.push({
+      card_name: row.c1_name,
+      mana_cost: row.c1_mana_cost,
+      type_line: row.c1_type_line,
+      oracle_text: row.c1_oracle_text,
+      power: row.c1_power,
+      toughness: row.c1_toughness,
+      colors: row.c1_colors,
+      color_identity: row.c1_color_identity,
+      image_uris: row.c1_image_uris,
+      layout: row.c1_layout,
+      card_faces: row.c1_card_faces,
+      artist: row.c1_artist,
+      set_name: row.c1_set_name,
+      card_power: row.c1_card_power,
+      versatility: row.c1_versatility,
+      popularity: row.c1_popularity,
+      salt: row.c1_salt,
+      price: row.c1_price,
+      scryfall_uri: row.c1_scryfall_uri
+    })
+  }
+  if (row.c2_name) {
+    out.push({
+      card_name: row.c2_name,
+      mana_cost: row.c2_mana_cost,
+      type_line: row.c2_type_line,
+      oracle_text: row.c2_oracle_text,
+      power: row.c2_power,
+      toughness: row.c2_toughness,
+      colors: row.c2_colors,
+      color_identity: row.c2_color_identity,
+      image_uris: row.c2_image_uris,
+      layout: row.c2_layout,
+      card_faces: row.c2_card_faces,
+      artist: row.c2_artist,
+      set_name: row.c2_set_name,
+      card_power: row.c2_card_power,
+      versatility: row.c2_versatility,
+      popularity: row.c2_popularity,
+      salt: row.c2_salt,
+      price: row.c2_price,
+      scryfall_uri: row.c2_scryfall_uri
+    })
+  }
+  return out
+}
+
+builder.objectType('DeckBoxData', {
+  fields: (t) => ({
+    deckId: t.string({ resolve: (p) => p.deckId }),
+    tournamentId: t.string({ nullable: true, resolve: (p) => p.tournamentId }),
+    tournamentName: t.string({ nullable: true, resolve: (p) => p.tournamentName }),
+    tournamentPlayers: t.int({ nullable: true, resolve: (p) => p.totalPlayers ?? null }),
+    player: t.string({ resolve: (p) => p.playerName || 'Unknown' }),
+    wins: t.int({ resolve: (p) => Number(p.wins || 0) }),
+    losses: t.int({ resolve: (p) => Number(p.losses || 0) }),
+    draws: t.int({ resolve: (p) => Number(p.draws || 0) }),
+    avgWinRate: t.float({ resolve: (p) => Number(p.winRate || 0) }),
+    standing: t.int({ nullable: true, resolve: (p) => p.standing ?? null }),
+    lastSeen: t.string({ nullable: true, resolve: (p) => p.lastSeen || null }),
+    cardCount: t.int({ resolve: (p) => Number(p.totalCards || 0) }),
+    sameCommanderCount: t.int({ resolve: (p) => Math.max(0, Number(p.same_commander_count || 0)) }),
+    colors: t.field({ type: ['String'], resolve: (p) => parseDeckColorsString(p.deckColors) }),
+    top8Count: t.int({ resolve: (p) => (p.standing != null && p.standing <= 8 ? 1 : 0) }),
+    commanders: t.field({ type: ['Card'], resolve: (p) => mapCommanderCards(p) }),
+  })
+})
+
+builder.objectType('DeckMetaData', {
+  fields: (t) => ({
+    deckId: t.string({ resolve: (p) => p.deckId }),
+    tournamentId: t.string({ nullable: true, resolve: (p) => p.tournamentId }),
+    tournamentName: t.string({ nullable: true, resolve: (p) => p.tournamentName || null }),
+    totalPlayers: t.int({ nullable: true, resolve: (p) => p.totalPlayers ?? null }),
+    topCut: t.int({ nullable: true, resolve: (p) => p.topCut ?? null }),
+    playerName: t.string({ resolve: (p) => p.playerName || 'Unknown' }),
+    wins: t.int({ resolve: (p) => Number(p.wins || 0) }),
+    losses: t.int({ resolve: (p) => Number(p.losses || 0) }),
+    draws: t.int({ resolve: (p) => Number(p.draws || 0) }),
+    winRate: t.float({ resolve: (p) => Number(p.winRate || 0) }),
+    standing: t.int({ nullable: true, resolve: (p) => p.standing ?? null }),
+    lastSeen: t.string({ nullable: true, resolve: (p) => p.lastSeen || null }),
+    commander1: t.field({ type: 'Card', nullable: true, resolve: (p) => mapCommanderCards(p)[0] || null }),
+    commander2: t.field({ type: 'Card', nullable: true, resolve: (p) => mapCommanderCards(p)[1] || null }),
+  })
+})
+
+// Build the schema after all object types are registered
 export const schema = builder.toSchema()
