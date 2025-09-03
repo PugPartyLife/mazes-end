@@ -186,6 +186,27 @@ export interface CommanderRecommendation {
   estimated_deck_price: number | null
 }
 
+// GraphQL-specific types (these are not database tables but query results)
+export interface PlayerHistory {
+  tournament_name: string | null
+  start_date: string | null
+  standing: number | null
+  win_rate: number
+  commander_1: string | null
+  commander_2: string | null
+  deck_colors: string | null
+}
+
+export interface DatabaseSummary {
+  totalTournaments: number
+  totalPlayers: number
+  totalDecks: number
+  totalCards: number
+  totalDeckCards: number
+  latestTournament: string
+  databasePath: string
+}
+
 // Helper types for parsed JSON fields
 export interface ParsedColors {
   colors: string[]
@@ -256,3 +277,55 @@ export interface CommanderData {
   avgWinRate: number
   top8Count: number
 }
+
+// Query parameter types for pre-built queries
+export interface TopCommandersParams {
+  limit?: number
+  minDecks?: number
+}
+
+export interface TopCardsForCommanderParams {
+  commanderName: string
+  limit?: number
+  minInclusions?: number
+}
+
+export interface CommanderRecommendationsParams {
+  minDecks?: number
+  limit?: number
+  archetypeFilter?: string | null
+}
+
+export interface TournamentsByFormatParams {
+  format?: string
+  limit?: number
+}
+
+// Response types for aggregated data
+export interface CommanderPerformanceStats {
+  commanderName: string
+  totalGames: number
+  winRate: number
+  avgStanding: number
+  top8Rate: number
+}
+
+export interface CardInclusionStats {
+  cardName: string
+  inclusionRate: number
+  performanceImpact: number // positive = improves win rate, negative = reduces
+}
+
+// Export a type union of all database types for generic functions
+export type AnyDatabaseType = 
+  | CardType 
+  | Tournament 
+  | Player 
+  | Deck 
+  | Card 
+  | DeckCard 
+  | PlayerSurvey 
+  | CommanderArchetype
+  | TopCommander
+  | TopCardForCommander
+  | CommanderRecommendation

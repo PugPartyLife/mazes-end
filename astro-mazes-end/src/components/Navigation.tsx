@@ -24,7 +24,7 @@ export default function Navigation(): React.JSX.Element {
     { name: 'Home', href: '/' },
     { name: 'Commanders', href: '/commanders' },
     { name: 'Cards and Combos', href: '/cards' },
-    { name: 'Tournaments', href: '#tournaments' },
+    { name: 'Decks', href: '/decks' },
   ];
 
   return (
