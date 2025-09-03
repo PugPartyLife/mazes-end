@@ -176,30 +176,30 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
     // A true Top 8 means final standing is 8 or better, regardless of event's top_cut size
     const top8 = r.standing != null && r.standing <= 8 ? 1 : 0
 
-    const deck: DeckBoxProps = {
-      name,
-      tournamentName: r.tournamentName || '',
-      tournamentPlayers: r.totalPlayers ?? undefined,
-      tournamentId: r.tournamentId || undefined,
-      colors,
-      player: r.playerName || 'Unknown',
-      wins: Number(r.wins || 0),
-      losses: Number(r.losses || 0),
-      draws: Number(r.draws || 0),
-      avgWinRate: Number(r.winRate || 0),
-      top8Count: top8,
-      deckCount: 1,
-      sameCommanderCount: Math.max(0, Number(r.same_commander_count || 0)),
-      standing: r.standing ?? undefined,
-      lastSeen: r.lastSeen || '',
-      cardCount: Number(r.totalCards || (98 + commanders.length)),
-      commanders,
-      deckUrl: '#',
-      className: '',
-      peekWidth: 260,
-      peekHeight: 160,
-      onOpenCard: () => {},
-    }
+      const deck: DeckBoxProps = {
+        name,
+        tournamentName: r.tournamentName || '',
+        tournamentPlayers: r.totalPlayers ?? undefined,
+        tournamentId: r.tournamentId || undefined,
+        colors,
+        player: r.playerName || 'Unknown',
+        wins: Number(r.wins || 0),
+        losses: Number(r.losses || 0),
+        draws: Number(r.draws || 0),
+        avgWinRate: Number(r.winRate || 0),
+        top8Count: top8,
+        deckCount: 1,
+        sameCommanderCount: Math.max(0, Number(r.same_commander_count || 0)),
+        standing: r.standing ?? undefined,
+        lastSeen: r.lastSeen || '',
+        cardCount: Number(r.totalCards || (98 + commanders.length)),
+        commanders,
+        deckUrl: `/decks/${r.deckId}`,
+        className: '',
+        peekWidth: 260,
+        peekHeight: 160,
+        onOpenCard: () => {},
+      }
 
     return deck
   })

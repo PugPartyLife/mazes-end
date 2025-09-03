@@ -73,6 +73,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   peekHeight = 160
 }) => {
   const [open, setOpen] = useState<DbUICard | null>(null)
+  const [hoverClickable, setHoverClickable] = useState(false)
 
   const safeCommanders = Array.isArray(commanders) ? commanders.slice(0, 2) : []
 
@@ -107,14 +108,31 @@ const DeckBox: React.FC<DeckBoxProps> = ({
         className={[
           'relative w-full max-w-[25rem] sm:max-w-[26rem]',
           'px-4 sm:px-5 pb-4 sm:pb-5',
+          // Emphasize clickability only when outside the peek zone
+          hoverClickable ? 'hover:ring-[#DAA21C] hover:ring-2 focus-visible:ring-[#DAA21C] focus-visible:ring-2 transition-colors' : '',
           open ? 'invisible' : '',
           className ?? ''
         ].join(' ')}
-        style={{ paddingTop }}
+        style={{ paddingTop, cursor: hoverClickable ? 'pointer' : 'default' }}
+        onClick={() => { if (deckUrl) window.location.href = deckUrl }}
+        onKeyDown={(e) => { if (deckUrl && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); (window.location.href = deckUrl) } }}
+        role='link'
+        tabIndex={0}
+        aria-label={`View deck ${name}`}
+        onMouseMove={(e) => {
+          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
+          const y = e.clientY - rect.top
+          // Make the top peek zone (and a small buffer) non-clickable for hover affordance
+          const nonClickableHeight = peekZone + 12
+          setHoverClickable(y > nonClickableHeight)
+        }}
+        onMouseLeave={() => setHoverClickable(false)}
+        onFocus={() => setHoverClickable(true)}
+        onBlur={() => setHoverClickable(false)}
       >
         {/* Commander peeks (inside reserved zone, lower z-index) */}
         <div
-          className='absolute inset-x-0 z-0 flex justify-center gap-4 items-start'
+          className='absolute inset-x-0 z-0 flex justify-center gap-4 items-start cursor-default'
           style={{ top: 8, height: peekZone }}
         >
           {safeCommanders.length ? (

@@ -185,7 +185,7 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
       lastSeen: r.lastSeen || '',
       cardCount: Number(r.totalCards || (98 + commanders.length)),
       commanders,
-      deckUrl: '#',
+      deckUrl: `/decks/${r.deckId}`,
       className: '',
       peekWidth: 260,
       peekHeight: 160,

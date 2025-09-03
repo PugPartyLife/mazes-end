@@ -1,4 +1,4 @@
-import React, { useId } from 'react'
+import React, { useEffect, useId, useState } from 'react'
 
 export type TooltipProps = {
   children: React.ReactNode
@@ -22,6 +22,16 @@ export default function Tooltip ({
   tooltipClassName
 }: TooltipProps) {
   const id = useId()
+  const [isOpen, setIsOpen] = useState(false)
+  const [isCoarse, setIsCoarse] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'matchMedia' in window) {
+      try {
+        setIsCoarse(window.matchMedia('(pointer: coarse)').matches)
+      } catch {}
+    }
+  }, [])
 
   const pos = (() => {
     switch (placement) {
@@ -57,10 +67,23 @@ export default function Tooltip ({
   })()
 
   return (
-    <div className={[
+    <div
+      className={[
       'relative inline-flex group focus:outline-none focus:ring-0',
       className ?? ''
-    ].join(' ')} tabIndex={0} aria-describedby={id}>
+    ].join(' ')}
+      tabIndex={0}
+      aria-describedby={id}
+      onClick={(e) => {
+        // On touch devices, toggle tooltip visibility on tap
+        if (isCoarse) {
+          e.preventDefault()
+          setIsOpen(v => !v)
+        }
+      }}
+      onBlur={() => setIsOpen(false)}
+      onKeyDown={(e) => { if (e.key === 'Escape') setIsOpen(false) }}
+    >
       {children}
       <div
         id={id}
@@ -72,6 +95,7 @@ export default function Tooltip ({
           'px-2.5 py-2 shadow-xl min-w-[180px]',
           'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0',
           'group-focus-within:opacity-100 group-focus-within:translate-y-0',
+          isOpen ? 'opacity-100 translate-y-0' : '',
           'transition motion-reduce:transition-none motion-reduce:transform-none',
           tooltipClassName ?? ''
         ].join(' ')}
@@ -85,4 +109,3 @@ export default function Tooltip ({
     </div>
   )
 }
-

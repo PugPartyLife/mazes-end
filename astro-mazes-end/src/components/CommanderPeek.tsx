@@ -17,8 +17,8 @@ const CommanderPeek: React.FC<{
       role='button'
       tabIndex={0}
       aria-label={`Open ${card?.name ?? 'card'}`}
-      onClick={() => onOpen?.(card)}
-      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onOpen?.(card)}
+      onClick={(e) => { e.stopPropagation(); onOpen?.(card) }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onOpen?.(card) } }}
       className={`relative ${className ?? ''}`}
       style={{ width, height }}
     >
@@ -39,4 +39,3 @@ const CommanderPeek: React.FC<{
 }
 
 export default CommanderPeek
-
