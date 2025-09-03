@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Production Moxfield scraper that reads URLs from file and writes deckObj data to JSON.
-Includes proper debouncing, error handling, and cleanup.
+Includes proper debouncing, error handling, cleanup, and primer extraction.
 """
 
 import time
@@ -114,14 +114,15 @@ class MoxfieldScraper:
             # Create output directory if it doesn't exist
             os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
             
-            # Create structured output
+            # Create structured output with primer stats
             output = {
                 'metadata': {
                     'scraped_at': time.strftime('%Y-%m-%d %H:%M:%S'),
                     'total_decks': len(results['successful_decks']),
                     'total_unique_cards': results['total_unique_cards'],
                     'success_rate': results['success_rate'],
-                    'scraping_duration_minutes': round((time.time() - self.start_time) / 60, 2)
+                    'scraping_duration_minutes': round((time.time() - self.start_time) / 60, 2),
+                    'primer_stats': results.get('primer_stats', {})  # Add primer stats to metadata
                 },
                 'decks': {},
                 'failed_urls': results['failed_urls']
@@ -146,7 +147,9 @@ class MoxfieldScraper:
                     'deckObj': deck.get('deckObj', {}),
                     'commanders': deck.get('commanders', []),
                     'mainboard': deck.get('mainboard', []),
-                    'sideboard': deck.get('sideboard', [])
+                    'sideboard': deck.get('sideboard', []),
+                    'primer': deck.get('primer', None),  # Add primer to output
+                    'has_primer': deck.get('has_primer', False)
                 }
             
             with open(filepath, 'w', encoding='utf-8') as f:
@@ -256,6 +259,109 @@ class MoxfieldScraper:
             print(f"❌ Login failed: {e}")
             return False
     
+    def _extract_primer(self) -> Optional[str]:
+        """Extract primer/description content from Moxfield deck page."""
+        try:
+            print("📄 Looking for primer content...")
+            
+            # Multiple selectors for primer content based on Moxfield's structure
+            primer_selectors = [
+                # Common primer section selectors
+                '[class*="primer"]',
+                '[class*="description"]',
+                '[class*="deck-description"]',
+                '[class*="markdown-content"]',
+                '[class*="deck-notes"]',
+                
+                # Try data attributes
+                '[data-testid="deck-description"]',
+                '[data-testid="primer-content"]',
+                
+                # Look for sections that might contain primer
+                'div[class*="prose"]',
+                'section[class*="content"] .markdown',
+                '.deck-details-description',
+                
+                # Fallback to generic content areas
+                'div.content-area',
+                'article.deck-content'
+            ]
+            
+            primer_text = None
+            
+            for selector in primer_selectors:
+                try:
+                    elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                    for element in elements:
+                        text = element.text.strip()
+                        # Look for substantial text content (not just card names)
+                        if text and len(text) > 100 and not text.isdigit():
+                            # Check if this looks like primer content
+                            if any(keyword in text.lower() for keyword in 
+                                   ['strategy', 'guide', 'primer', 'description', 'overview', 
+                                    'gameplan', 'deck tech', 'how to play', 'mulligans']):
+                                primer_text = text
+                                print(f"✅ Found primer using selector: {selector}")
+                                print(f"   Primer length: {len(text)} characters")
+                                print(f"   First 100 chars: {text[:100]}...")
+                                break
+                except Exception as e:
+                    continue
+                
+                if primer_text:
+                    break
+            
+            # If CSS selectors fail, try looking for primer in script tags
+            if not primer_text:
+                print("🔍 Searching for primer in JSON/script data...")
+                script_elements = self.driver.find_elements(By.TAG_NAME, "script")
+                for script in script_elements:
+                    try:
+                        content = script.get_attribute("innerHTML")
+                        if content and len(content) > 100:
+                            # Look for primer/description in JSON data
+                            patterns = [
+                                r'"primer"\s*:\s*"([^"]*)"',
+                                r'"description"\s*:\s*"([^"]*)"',
+                                r'"deckDescription"\s*:\s*"([^"]*)"',
+                                r'"notes"\s*:\s*"([^"]*)"'
+                            ]
+                            
+                            for pattern in patterns:
+                                match = re.search(pattern, content, re.DOTALL)
+                                if match:
+                                    raw_text = match.group(1)
+                                    # Unescape JSON string
+                                    primer_text = raw_text.replace('\\n', '\n').replace('\\r', '\r').replace('\\"', '"')
+                                    if len(primer_text) > 50:
+                                        print(f"✅ Found primer in JSON data using pattern: {pattern}")
+                                        print(f"   Primer length: {len(primer_text)} characters")
+                                        break
+                    except Exception:
+                        continue
+            
+            # Clean up the primer text if found
+            if primer_text:
+                # Remove excessive whitespace
+                original_length = len(primer_text)
+                primer_text = re.sub(r'\s+', ' ', primer_text).strip()
+                # Restore paragraph breaks
+                primer_text = re.sub(r'\.(\s+)([A-Z])', r'.\n\n\2', primer_text)
+                
+                print(f"📝 Primer content processed:")
+                print(f"   Original length: {original_length} chars")
+                print(f"   Cleaned length: {len(primer_text)} chars")
+                print(f"   Has multiple paragraphs: {'Yes' if '\n\n' in primer_text else 'No'}")
+                
+                return primer_text
+            else:
+                print("ℹ️  No primer content found for this deck")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️  Error extracting primer: {e}")
+            return None
+    
     def scrape_deck(self, url: str) -> Optional[Dict]:
         """
         Scrape a single Moxfield deck.
@@ -318,7 +424,14 @@ class MoxfieldScraper:
             deck_data = self._extract_deck_data()
             
             if deck_data:
-                print(f"✅ Successfully scraped: {deck_data.get('name', 'Unknown')} ({deck_data.get('total_cards', 0)} cards)")
+                # Enhanced success logging with primer info
+                primer_status = "✅ Has primer" if deck_data.get('has_primer') else "❌ No primer"
+                primer_length = f" ({len(deck_data.get('primer', ''))} chars)" if deck_data.get('primer') else ""
+                
+                print(f"✅ Successfully scraped: {deck_data.get('name', 'Unknown')}")
+                print(f"   Total cards: {deck_data.get('total_cards', 0)}")
+                print(f"   Primer: {primer_status}{primer_length}")
+                
                 return deck_data
             else:
                 print("❌ Failed to extract deck data")
@@ -340,7 +453,7 @@ class MoxfieldScraper:
             deck_name = "Unknown"
             title = self.driver.title
             if title and "MTG Deck Builder" in title:
-                # Extract name from: "Rograkh's Wheelhouse // Commander (...) deck list mtg // Moxfield — MTG Deck Builder"
+                # Extract name from: "Rograkh's Wheelhouse // Commander (...) deck list mtg // Moxfield – MTG Deck Builder"
                 name_part = title.split(" // ")[0]
                 if name_part:
                     deck_name = name_part.strip()
@@ -391,7 +504,18 @@ class MoxfieldScraper:
                                 if deck_data:
                                     print(f"✅ Successfully extracted from {pattern_name}")
                                     deck_data['name'] = deck_name  # Use the name we got from title
-                                    return self._format_deck_data(deck_data)
+                                    formatted_data = self._format_deck_data(deck_data)
+                                    
+                                    # Extract primer content
+                                    primer = self._extract_primer()
+                                    if primer:
+                                        formatted_data['primer'] = primer
+                                        formatted_data['has_primer'] = True
+                                    else:
+                                        formatted_data['primer'] = None
+                                        formatted_data['has_primer'] = False
+                                    
+                                    return formatted_data
                                     
                             except (json.JSONDecodeError, KeyError) as e:
                                 print(f"⚠️  Failed to parse {pattern_name}: {str(e)[:100]}")
@@ -431,7 +555,9 @@ class MoxfieldScraper:
                 'url': self.driver.current_url,
                 'format': '',
                 'colors': [],
-                'total_cards': 0
+                'total_cards': 0,
+                'primer': None,
+                'has_primer': False
             }
             
             # Look for card links - this worked!
@@ -529,10 +655,17 @@ class MoxfieldScraper:
                 
                 result['deckObj'] = deck_obj
                 
+                # Extract primer content
+                primer = self._extract_primer()
+                if primer:
+                    result['primer'] = primer
+                    result['has_primer'] = True
+                
                 print(f"✅ DOM extraction results:")
                 print(f"   Commanders: {len(result['commanders'])}")
                 print(f"   Mainboard: {len(result['mainboard'])}")
                 print(f"   Total cards: {total}")
+                print(f"   Primer: {'Yes' if result['has_primer'] else 'No'}")
                 print(f"   deckObj created with {len(deck_obj['Commanders'])} commanders, {len(deck_obj['Mainboard'])} mainboard cards")
                 
                 return result
@@ -594,7 +727,9 @@ class MoxfieldScraper:
             'format': raw_data.get('format', ''),
             'colors': raw_data.get('colors', []),
             'total_cards': 0,
-            'deckObj': {}  # Add TopDeck.gg compatible deckObj
+            'deckObj': {},  # Add TopDeck.gg compatible deckObj
+            'primer': raw_data.get('primer', None),  # Add primer field
+            'has_primer': raw_data.get('has_primer', False)
         }
         
         # Create deckObj structure
@@ -700,7 +835,13 @@ class MoxfieldScraper:
                 'unique_cards': [],
                 'successful_decks': [],
                 'failed_urls': [],
-                'success_rate': 0
+                'success_rate': 0,
+                'primer_stats': {
+                    'decks_with_primers': 0,
+                    'primer_percentage': 0,
+                    'avg_primer_length': 0,
+                    'total_primer_chars': 0
+                }
             }
         
         # Filter to only Moxfield URLs
@@ -712,6 +853,10 @@ class MoxfieldScraper:
         all_cards = set()
         successful_decks = []
         failed_urls = []
+        
+        # Add primer tracking variables
+        decks_with_primers = 0
+        total_primer_length = 0
         
         print(f"🚀 Scraping {len(moxfield_urls)} Moxfield URLs...")
         print(f"   Delay between requests: {self.delay}s")
@@ -728,6 +873,12 @@ class MoxfieldScraper:
                     cards = self.get_all_card_names(deck_data)
                     all_cards.update(cards)
                     
+                    # Track primer statistics
+                    if deck_data.get('has_primer'):
+                        decks_with_primers += 1
+                        primer_length = len(deck_data.get('primer', ''))
+                        total_primer_length += primer_length
+                    
                     # Store complete deck data including deckObj
                     successful_decks.append({
                         'url': url,
@@ -737,11 +888,14 @@ class MoxfieldScraper:
                         'deckObj': deck_data.get('deckObj', {}),
                         'commanders': deck_data.get('commanders', []),
                         'mainboard': deck_data.get('mainboard', []),
-                        'sideboard': deck_data.get('sideboard', [])
+                        'sideboard': deck_data.get('sideboard', []),
+                        'primer': deck_data.get('primer', None),
+                        'has_primer': deck_data.get('has_primer', False)
                     })
                     
                     print(f"✅ Success: {deck_data['name']}")
                     print(f"   Cards: {len(cards)} unique, {deck_data.get('total_cards', len(cards))} total")
+                    print(f"   Primer: {'Yes' if deck_data.get('has_primer') else 'No'}")
                 else:
                     failed_urls.append(url)
                     print(f"❌ Failed")
@@ -769,12 +923,19 @@ class MoxfieldScraper:
         finally:
             self.cleanup()
         
+        # Add primer statistics to return value
         return {
             'total_unique_cards': len(all_cards),
             'unique_cards': sorted(list(all_cards)),
             'successful_decks': successful_decks,
             'failed_urls': failed_urls,
-            'success_rate': len(successful_decks) / len(moxfield_urls) * 100 if moxfield_urls else 0
+            'success_rate': len(successful_decks) / len(moxfield_urls) * 100 if moxfield_urls else 0,
+            'primer_stats': {
+                'decks_with_primers': decks_with_primers,
+                'primer_percentage': (decks_with_primers / len(successful_decks) * 100) if successful_decks else 0,
+                'avg_primer_length': (total_primer_length / decks_with_primers) if decks_with_primers else 0,
+                'total_primer_chars': total_primer_length
+            }
         }
     
     def close(self):
@@ -786,7 +947,7 @@ def main():
     """Production scraper that reads URLs from file and writes results to JSON."""
     
     # Configuration
-    input_file = "moxfield_urls.txt"  # Create this file with one URL per line
+    input_file = "moxfield_urls_1.txt"  # Create this file with one URL per line
     output_file = "scraped_decks.json"
     
     print("🔥 Production Moxfield Scraper")
@@ -821,7 +982,7 @@ def main():
         # Write results to file
         success = scraper.write_results_to_file(result, output_file)
         
-        # Final summary
+        # Final summary with primer statistics
         print(f"\n📊 FINAL RESULTS:")
         print(f"   Success rate: {result['success_rate']:.1f}%")
         print(f"   Total decks scraped: {len(result['successful_decks'])}")
@@ -829,12 +990,34 @@ def main():
         print(f"   Failed URLs: {len(result['failed_urls'])}")
         print(f"   Output written: {'✅' if success else '❌'}")
         
+        # Add primer statistics to summary
+        if 'primer_stats' in result:
+            primer_stats = result['primer_stats']
+            print(f"\n📄 PRIMER STATISTICS:")
+            print(f"   Decks with primers: {primer_stats['decks_with_primers']} ({primer_stats['primer_percentage']:.1f}%)")
+            if primer_stats['decks_with_primers'] > 0:
+                print(f"   Average primer length: {primer_stats['avg_primer_length']:.0f} characters")
+                print(f"   Total primer content: {primer_stats['total_primer_chars']:,} characters")
+        
         if result['successful_decks']:
             print(f"\n✅ Successfully scraped decks:")
             for deck in result['successful_decks'][:5]:  # Show first 5
-                print(f"     {deck['name']} - {deck['card_count']} cards")
+                primer_indicator = " 📄" if deck.get('has_primer') else ""
+                print(f"     {deck['name']} - {deck['card_count']} cards{primer_indicator}")
             if len(result['successful_decks']) > 5:
                 print(f"     ... and {len(result['successful_decks']) - 5} more")
+        
+        # Show which decks have primers
+        decks_with_primers = [d for d in result['successful_decks'] if d.get('has_primer')]
+        if decks_with_primers:
+            print(f"\n📄 Decks with primers ({len(decks_with_primers)}):")
+            for deck in decks_with_primers[:3]:
+                primer_preview = deck.get('primer', '')[:50] + "..." if deck.get('primer') else ""
+                print(f"     {deck['name']}")
+                if primer_preview:
+                    print(f"       Preview: {primer_preview}")
+            if len(decks_with_primers) > 3:
+                print(f"     ... and {len(decks_with_primers) - 3} more with primers")
         
         if result['failed_urls']:
             print(f"\n❌ Failed URLs:")
@@ -860,6 +1043,6 @@ if __name__ == "__main__":
             f.write("# Lines starting with # are comments and will be ignored\n")
             f.write("https://moxfield.com/decks/bPwJDfRWYUCXvj-m8FwmiQ\n")
             f.write("# Add more URLs here\n")
-        print(f"📝 Created sample input file: {sample_input}")
+        print(f"📄 Created sample input file: {sample_input}")
     
     main()
