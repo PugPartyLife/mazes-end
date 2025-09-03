@@ -138,15 +138,22 @@ function cardBorderClass (card: any, colors: string[]): string {
   return 'border-transparent'
 }
 
-/** Multicolor gradient (mana colors only; no gold blending) */
+/**
+ * Multicolor gradient (mana colors only; no gold blending)
+ * Use layered backgrounds instead of border-image so rounded corners render
+ * consistently across browsers and wrappers. The outer element already has
+ * `border-4` and a transparent border when multicolor.
+ */
 function cardBorderStyle (card: any, colors: string[]): React.CSSProperties {
   if (colors.length <= 1) return {}
   const stops = colors.map(c => HEX[c] ?? COLORLESS)
   const step = 100 / (stops.length - 1)
   const parts = stops.map((s, i) => `${s} ${Math.round(i * step)}%`).join(', ')
+  // Tailwind neutral-800 is rgb(38,38,38). Keep in sync with class.
+  const fill = 'rgb(38 38 38)' // bg-neutral-800
   return {
-    borderImage: `linear-gradient(90deg, ${parts}) 1`,
-    borderStyle: 'solid'
+    background: `linear-gradient(${fill}, ${fill}) padding-box, linear-gradient(90deg, ${parts}) border-box`,
+    backgroundClip: 'padding-box, border-box'
   }
 }
 
@@ -269,7 +276,7 @@ export default function MtgCard ({
   return (
     <div
       key={index}
-      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-visible ${cardBorderClass(
+      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-visible rounded-[1rem] ${cardBorderClass(
         card,
         colors
       )}`}

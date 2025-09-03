@@ -23,7 +23,7 @@ const CommanderPeek: React.FC<{
       style={{ width, height }}
     >
       <div
-        className='absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent'
+        className='absolute inset-0 overflow-visible bg-transparent'
         style={{
           transform: `rotate(${tilt}deg)`,
           WebkitMaskImage: `linear-gradient(180deg, #000 ${maskRatio * 100}%, rgba(0,0,0,0) 100%)`,
@@ -31,7 +31,7 @@ const CommanderPeek: React.FC<{
         }}
       >
         <div className='w-full cursor-pointer hover:brightness-130'>
-          <MtgCard card={card} />
+          <MtgCard card={card} showChips={false} />
         </div>
       </div>
     </div>

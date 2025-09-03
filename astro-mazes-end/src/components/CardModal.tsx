@@ -41,12 +41,11 @@ export default function CardModal ({
           >
             ✕ Close
           </button>
-          <div className='rounded-2xl overflow-hidden'>
-            <MtgCard card={card} />
+          <div className='overflow-visible'>
+            <MtgCard card={card} showChips={false} />
           </div>
         </div>
       </div>
     </div>
   )
 }
-

@@ -51,7 +51,7 @@ const grouped = order
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {g.items.map(({ card }) => (
               <div class="relative aspect-[63/88] w-full max-w-sm mx-auto">
-                <div class="absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent">
+                <div class="absolute inset-0 overflow-visible rounded-[1rem] bg-transparent">
                   <div class="w-full h-full">
                     <MtgCard client:visible card={card} />
                   </div>
