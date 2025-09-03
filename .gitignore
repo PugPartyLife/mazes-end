@@ -14,6 +14,11 @@ test.db-*
 *.db-shm
 *.db-wal
 
+# local db backups / temp copies
+astro-mazes-end/*.db.bak
+astro-mazes-end/*backfill*.db
+astro-mazes-end/test.backfill.tmp.db
+
 # generated types
 .astro/
 
@@ -32,6 +37,7 @@ pnpm-debug.log*
 # large data artifacts
 astro-mazes-end/src/data/*.json
 !astro-mazes-end/src/data/.keep
+astro-mazes-end/src/data/moxfield_to_scryfall_rows.csv
 
 # environment variables
 .env

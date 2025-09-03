@@ -74,6 +74,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 }) => {
   const [open, setOpen] = useState<DbUICard | null>(null)
   const [hoverClickable, setHoverClickable] = useState(false)
+  const [suppressClickable, setSuppressClickable] = useState(false)
 
   const safeCommanders = Array.isArray(commanders) ? commanders.slice(0, 2) : []
 
@@ -101,19 +102,23 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   const showTop8 = (top8Count ?? 0) > 0
   // Modal handles ESC & focus
 
+  const clickableActive = hoverClickable && !suppressClickable
+
   return (
     <>
       {/* Keep grid space when modal open, but hide visually */}
       <SurfaceCard
+        interactive={false}
         className={[
           'relative w-full max-w-[25rem] sm:max-w-[26rem]',
           'px-4 sm:px-5 pb-4 sm:pb-5',
-          // Emphasize clickability only when outside the peek zone
-          hoverClickable ? 'hover:ring-[#DAA21C] hover:ring-2 focus-visible:ring-[#DAA21C] focus-visible:ring-2 transition-colors' : '',
+          'transition-shadow hover:shadow-[0_20px_60px_rgba(0,0,0,.55)]',
+          // Emphasize clickability only when outside the peek zone and not over the tournament pill
+          clickableActive ? 'hover:ring-[#DAA21C] hover:ring-2 focus-visible:ring-[#DAA21C] focus-visible:ring-2 transition-colors' : '',
           open ? 'invisible' : '',
           className ?? ''
         ].join(' ')}
-        style={{ paddingTop, cursor: hoverClickable ? 'pointer' : 'default' }}
+        style={{ paddingTop, cursor: clickableActive ? 'pointer' : 'default' }}
         onClick={() => { if (deckUrl) window.location.href = deckUrl }}
         onKeyDown={(e) => { if (deckUrl && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); (window.location.href = deckUrl) } }}
         role='link'
@@ -164,7 +169,13 @@ const DeckBox: React.FC<DeckBoxProps> = ({
 
           {/* Tournament (neutral pill, compact metadata) */}
           {tournamentName && (
-            <div className='rounded-xl border border-neutral-700/60 bg-neutral-800/70 px-3 py-2 mb-4'>
+            <div
+              className='rounded-xl border border-neutral-700/60 bg-neutral-800/70 px-3 py-2 mb-4 hover:border-[#DAA21C] focus-within:border-[#DAA21C] transition-colors'
+              onMouseEnter={() => setSuppressClickable(true)}
+              onMouseLeave={() => setSuppressClickable(false)}
+              onFocus={() => setSuppressClickable(true)}
+              onBlur={() => setSuppressClickable(false)}
+            >
               <SectionLabel>Tournament</SectionLabel>
               <a
                 href={tournamentId ? `/tournaments?id=${encodeURIComponent(tournamentId)}&name=${encodeURIComponent(tournamentName)}` : '/tournaments'}

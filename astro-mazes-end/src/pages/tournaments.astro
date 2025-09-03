@@ -4,24 +4,36 @@ import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import PageHeader from "../components/PageHeader";
 import TournamentCard from "../components/TournamentCard";
-import { loadTournaments, loadTournamentDeckBoxes } from "../server/tournaments";
+import { loadTournaments, loadTournamentDeckBoxes, loadTournamentById } from "../server/tournaments";
 
 const limit = Number(Astro.url.searchParams.get('limit') ?? 10);
-const tournaments = await loadTournaments(limit, 0);
+const idFilter = Astro.url.searchParams.get('id');
+let tournaments: any[] = [];
 const decksByTid = new Map<string, any[]>();
-await Promise.all(
-  tournaments.map(async (t) => {
-    const decks = await loadTournamentDeckBoxes(t.id);
-    decksByTid.set(t.id, decks);
-  })
-);
+
+if (idFilter) {
+  const one = await loadTournamentById(idFilter);
+  if (one) {
+    tournaments = [one];
+    const decks = await loadTournamentDeckBoxes(one.id);
+    decksByTid.set(one.id, decks);
+  }
+} else {
+  tournaments = await loadTournaments(limit, 0);
+  await Promise.all(
+    tournaments.map(async (t) => {
+      const decks = await loadTournamentDeckBoxes(t.id);
+      decksByTid.set(t.id, decks);
+    })
+  );
+}
 ---
 
 <Layout title="The Maze's End - Tournaments">
   <div class="min-h-screen bg-gray-900 bg-vignette p-16">
     <Navigation client:idle />
     <div class="mx-auto max-w-7xl">
-      <PageHeader client:idle title="Tournaments" placeholder="Search tournaments..." />
+      <PageHeader client:idle title={idFilter && tournaments[0] ? `Tournament: ${tournaments[0].name}` : 'Tournaments'} placeholder="Search tournaments..." />
     </div>
 
     <div class="mx-auto max-w-7xl space-y-6">
@@ -37,9 +49,11 @@ await Promise.all(
       ))}
     </div>
 
-    <div id="load-more-anchor" class="mt-8 flex justify-center">
-      <a id="load-more-btn" href={`?limit=${limit + 10}`} class="px-4 py-2 rounded-lg ring-1 ring-neutral-700 text-neutral-200 hover:bg-neutral-800">Load more</a>
-    </div>
+    {idFilter ? null : (
+      <div id="load-more-anchor" class="mt-8 flex justify-center">
+        <a id="load-more-btn" href={`?limit=${limit + 10}`} class="px-4 py-2 rounded-lg ring-1 ring-neutral-700 text-neutral-200 hover:bg-neutral-800">Load more</a>
+      </div>
+    )}
     <script>
       const KEY = 'me:scroll-keep-last'
       const btn = document.getElementById('load-more-btn')

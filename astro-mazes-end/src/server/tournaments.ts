@@ -53,6 +53,28 @@ export async function loadTournaments(limit = 20, offset = 0): Promise<Tournamen
   }))
 }
 
+export async function loadTournamentById(tournamentId: string): Promise<TournamentSummary | null> {
+  const rows = await queryDatabase<TournamentRow>(
+    `
+      SELECT tournament_id, tournament_name, start_date, total_players, top_cut, has_decklists
+      FROM tournaments
+      WHERE tournament_id = ?
+      LIMIT 1
+    `,
+    [tournamentId]
+  )
+  const r = rows?.[0]
+  if (!r) return null
+  return {
+    id: r.tournament_id,
+    name: r.tournament_name || r.tournament_id,
+    startDate: r.start_date,
+    totalPlayers: r.total_players,
+    topCut: r.top_cut,
+    hasDecklists: r.has_decklists
+  }
+}
+
 type DeckRow = {
   deckId: string
   tournamentId: string | null
