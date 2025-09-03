@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import ManaText from '../components/ManaText'
-import CardStats from '../components/CardStats'
+import PolygonStats from '../components/PolygonStats'
+import StatsChips from '../components/StatsChips'
 import type { DbUICard } from '../types'
 import { symbols as allSets } from '../data/magicSets'
 import Tooltip from '../components/Tooltip'
@@ -8,6 +9,8 @@ import Tooltip from '../components/Tooltip'
 type MtgCardProps = {
   card: DbUICard
   index?: number | string
+  showChips?: boolean
+  chips?: { staplePercent: number; decks: number; top8: number }
 }
 
 /** Colors → hex used for borders/gradients */
@@ -195,7 +198,9 @@ function InlineMana ({ text }: { text: string }) {
 
 export default function MtgCard ({
   card,
-  index
+  index,
+  showChips,
+  chips
 }: MtgCardProps): React.JSX.Element {
   const hasFaces = getFaces(card).length > 1
   const [faceIdx, setFaceIdx] = useState<number>(0)
@@ -264,7 +269,7 @@ export default function MtgCard ({
   return (
     <div
       key={index}
-      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-hidden ${cardBorderClass(
+      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-visible ${cardBorderClass(
         card,
         colors
       )}`}
@@ -277,7 +282,7 @@ export default function MtgCard ({
       {/* Inner frame as a grid: [topbar, ART (flex), type, rules, footer] */}
       <div
         className='
-          absolute inset-0 rounded-[1rem] overflow-hidden
+          absolute inset-0 rounded-[1rem] overflow-visible
           grid h-full
           grid-rows-[auto_minmax(4.5rem,1fr)_auto_auto_auto]
           sm:grid-rows-[auto_minmax(6rem,1fr)_auto_auto_auto]
@@ -299,14 +304,14 @@ export default function MtgCard ({
         </div>
 
         {/* Art window (flex height) */}
-        <div className='px-3 min-h-0'>
+        <div className='px-3 min-h-0 relative'>
           <div className='relative w-full h-full min-h-[3.75rem] sm:min-h-[5rem] rounded-md overflow-hidden border border-neutral-700/70 bg-neutral-100'>
             <div className='absolute inset-0'>
               {artSrc ? (
                 <img
                   src={artSrc}
                   alt={name}
-                  className='w-full h-full object-cover'
+                  className='w-full h-full object-cover object-left-top'
                   loading='lazy'
                   decoding='async'
                 />
@@ -318,8 +323,8 @@ export default function MtgCard ({
             </div>
 
             {/* Stats overlay */}
-            <div className='absolute top-2 left-2 bg-black/50 rounded-4xl p-1 origin-top-left scale-[.72] sm:scale-90 md:scale-100'>
-              <CardStats
+            <div className='absolute top-1 left-1 origin-top-left scale-[.72] sm:scale-90 md:scale-100'>
+              <PolygonStats
                 size={88}
                 values={{
                   power: statsPower,
@@ -345,6 +350,16 @@ export default function MtgCard ({
               </div>
             )}
           </div>
+          {/* Optional vertical stats chips on right side (outside art overflow clip) */}
+          {showChips && chips ? (
+            <div className='absolute right-1 top-1 sm:top-2 md:top-2 z-[2] pointer-events-none'>
+              <StatsChips direction='vertical' className='pointer-events-auto items-end'
+                staplePercent={chips.staplePercent}
+                decks={chips.decks}
+                top8={chips.top8}
+              />
+            </div>
+          ) : null}
         </div>
 
         {/* Type line + Set (icon at right with tooltip) */}
@@ -389,7 +404,7 @@ export default function MtgCard ({
         {/* Rules + Flavor */}
         <div className='relative mt-2 px-3 pb-2'>
           <div className='relative rounded-md border border-neutral-700/70 bg-[#f7f2e7] text-neutral-900 px-3 py-2 min-h-[84px] sm:min-h-[100px]'>
-            <div className='space-y-1.5 text-[12px] sm:text-[13px] leading-5'>
+            <div className='space-y-1.5 text-[12px] sm:text-[13px] leading-5 max-h-[7.5rem] sm:max-h-[9rem] md:max-h-[10.5rem] overflow-y-auto scroll-thin pr-1'>
               {oracleLines.length ? (
                 oracleLines.map((line, i) => (
                   <p key={i}>
@@ -411,7 +426,7 @@ export default function MtgCard ({
             ) : null}
 
             {(hasPT || hasLoyalty) && (
-              <div className='absolute -bottom-2 -right-2'>
+              <div className='absolute -bottom-3 -right-2'>
                 <div className='rounded-md bg-neutral-900 text-neutral-100 border border-neutral-700 px-2 py-1 shadow'>
                   <span className='text-xs sm:text-sm font-semibold tracking-wide'>
                     {hasPT ? `${power}/${toughness}` : `Loyalty ${loyalty}`}

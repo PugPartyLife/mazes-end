@@ -10,7 +10,8 @@ export default function PageHeader ({
   onToggleColor,
   surface = true,
   showReset = true,
-  placeholder = 'Search...'
+  placeholder = 'Search...',
+  searchDelay = 400
 }: {
   title: string
   subtitle?: string
@@ -20,10 +21,12 @@ export default function PageHeader ({
   surface?: boolean
   showReset?: boolean
   placeholder?: string
+  searchDelay?: number
 }) {
   const [q, setQ] = useState('')
   const [sub, setSub] = useState<string | undefined>(subtitle)
   const [selected, setSelected] = useState<Set<ColorId>>(new Set())
+  const timer = React.useRef<number | undefined>(undefined)
 
   // If no subtitle provided, derive from query (?name=...)
   useEffect(() => {
@@ -33,6 +36,15 @@ export default function PageHeader ({
       setSub(n || undefined)
     }
   }, [subtitle])
+
+  // Initialize search query from URL (?q=...)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const qParam = params.get('q')
+      if (qParam != null) setQ(qParam)
+    }
+  }, [])
 
   const toggle = (c: ColorId) => {
     const next = new Set(selected)
@@ -59,6 +71,22 @@ export default function PageHeader ({
       window.dispatchEvent(new CustomEvent('filter:colors', { detail: { colors: [] } }))
     }
   }
+
+  // Debounce search dispatch when q changes
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (timer.current) window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      onSearch?.(q)
+      if (!onSearch) {
+        const ev = new CustomEvent('filter:search', { detail: { q } })
+        window.dispatchEvent(ev)
+      }
+    }, Math.max(0, searchDelay))
+    return () => {
+      if (timer.current) window.clearTimeout(timer.current)
+    }
+  }, [q, onSearch, searchDelay])
   return (
     <div className='mx-auto max-w-7xl mb-6 sm:mb-8'>
       <div className='flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between'>
@@ -89,11 +117,6 @@ export default function PageHeader ({
               onChange={e => {
                 const v = e.target.value
                 setQ(v)
-                onSearch?.(v)
-                if (!onSearch && typeof window !== 'undefined') {
-                  const ev = new CustomEvent('filter:search', { detail: { q: v } })
-                  window.dispatchEvent(ev)
-                }
               }}
               placeholder={placeholder}
               className='w-full sm:w-72 rounded-lg bg-neutral-800 text-neutral-100 placeholder-neutral-400 px-3 py-2 ring-1 ring-neutral-700 focus:outline-none focus:ring-neutral-500'

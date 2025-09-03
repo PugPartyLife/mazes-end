@@ -592,7 +592,14 @@ class DatabaseLoader:
         """Parse decklist text into DeckCard entries."""
         if not decklist_text:
             return []
-        
+        # Normalize and unescape common escaped newlines so we don't ingest a single giant line
+        try:
+            decklist_text = decklist_text.replace('\r\n', '\n').replace('\r', '\n')
+            # Handle text where newlines were escaped as literal "\\n"
+            decklist_text = decklist_text.replace('\\r\\n', '\n').replace('\\n', '\n')
+        except Exception:
+            pass
+
         deck_cards = []
         lines = decklist_text.strip().split('\n')
         current_section = 'mainboard'

@@ -15,3 +15,19 @@
 /* Optional named shadows for consistency */
 .shadow-elev-1 { box-shadow: 0 15px 40px rgba(0,0,0,.55); }
 .shadow-elev-2 { box-shadow: 0 20px 60px rgba(0,0,0,.55); }
+
+/* Minimal scrollbars for rules text in MtgCard */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.35) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.35);
+  border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}

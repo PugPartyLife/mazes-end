@@ -3,9 +3,11 @@ import Layout from "../layouts/Layout.astro";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
 import MtgCard from "../components/MtgCard";
-import { loadCardsFromDb } from "../server/cards";
+import { loadCardsWithStats } from "../server/cards";
 import PageHeader from "../components/PageHeader";
-const cards = await loadCardsFromDb(12);
+const limit = Number(Astro.url.searchParams.get('limit') ?? 96);
+const q = Astro.url.searchParams.get('q') || undefined;
+const rows = await loadCardsWithStats(limit, 0, q);
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
@@ -15,12 +17,34 @@ const cards = await loadCardsFromDb(12);
       <PageHeader client:idle title="Top Cards" placeholder="Search cards..." />
     </div>
 
+    <div class="mx-auto max-w-7xl mb-3 flex items-center justify-end">
+      <label class="text-xs text-neutral-300 mr-2">Sort by</label>
+      <select id="card-sort" class="bg-neutral-900 text-neutral-100 text-xs ring-1 ring-neutral-700 rounded-md px-2 py-1">
+        <option value="score" selected>Score</option>
+        <option value="staple">Staple %</option>
+        <option value="decks">Decks</option>
+        <option value="top8">Top 8s</option>
+        <option value="tournaments">Tournaments</option>
+      </select>
+    </div>
+
     <div id="card-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {cards.map((card) => (
-        <div class="relative aspect-[63/88] w-full max-w-sm mx-auto card-item" data-name={card.name} data-colors={(card.color_identity || card.colors || []).join("")}>
-          <div class="absolute inset-0 overflow-hidden rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent">
-            <div class="w-full h-full">
-              <MtgCard client:visible card={card} />
+      {rows.map((r) => (
+        <div class="relative aspect-[63/88] w-full max-w-sm mx-auto card-item"
+             data-name={r.card.name}
+             data-type={r.card.type_line}
+             data-colors={(r.card.color_identity || r.card.colors || []).join("")}
+             data-score={r.score}
+             data-staple={Math.round((r.inclusionRate || 0) * 100)}
+             data-decks={r.decksIncluded}
+             data-top8={r.top8WithCard}
+             data-tournaments={r.tournamentsSeen}
+        >
+          <div class="absolute inset-0">
+            <div class="w-full h-full overflow-visible rounded-[1rem] shadow-2xl ring-1 ring-black/30 bg-transparent">
+              <div class="w-full h-full">
+                <MtgCard client:visible card={r.card} showChips chips={{ staplePercent: (r.inclusionRate || 0) * 100, decks: r.decksIncluded, top8: r.top8WithCard }} />
+              </div>
             </div>
           </div>
         </div>
@@ -28,15 +52,68 @@ const cards = await loadCardsFromDb(12);
     </div>
     <script type="module">
       import { setupManaFilter } from '/src/scripts/manaFilter.ts';
+      import { setupGridSort } from '/src/scripts/gridSort.ts';
       setupManaFilter({
         gridSelector: '#card-grid',
         itemSelector: '.card-item',
-        textAttrs: ['data-name'],
+        textAttrs: ['data-name','data-type'],
         colorsAttr: 'data-colors',
         colorMode: 'and'
       });
+      setupGridSort('card-sort', '#card-grid');
+
+      // Navigate on search to query the whole DB (only if URL actually changes)
+      window.addEventListener('filter:search', (e) => {
+        // @ts-ignore
+        const term = (e.detail?.q || '').trim()
+        const current = new URL(window.location.href)
+        const target = new URL(window.location.href)
+        const currentQ = (current.searchParams.get('q') || '').trim()
+        if (term) target.searchParams.set('q', term)
+        else target.searchParams.delete('q')
+        // Reset pagination on new search
+        target.searchParams.delete('limit')
+
+        // If nothing changes, do nothing (prevents infinite reloads)
+        if (target.toString() === current.toString()) return
+        if (term === currentQ && !current.searchParams.has('limit')) return
+
+        window.location.assign(target.toString())
+      })
     </script>
-    
+    <div id="load-more-anchor" class="mt-8 flex justify-center">
+      <a id="load-more-btn" href={`?limit=${limit + 24}${q ? `&q=${encodeURIComponent(q)}` : ''}#load-more-anchor`} class="px-4 py-2 rounded-lg ring-1 ring-neutral-700 text-neutral-200 hover:bg-neutral-800">Load more</a>
+    </div>
+    <script>
+      // Keep scroll near load-more anchor on reloads
+      const KEY = 'me:cards:scroll-keep-last'
+      const btn = document.getElementById('load-more-btn')
+      btn?.addEventListener('click', () => {
+        const cards = document.querySelectorAll('.card-item')
+        const last = cards[cards.length - 1]
+        if (last) {
+          const rect = last.getBoundingClientRect()
+          const data = { id: (last as HTMLElement).getAttribute('data-name') || '', top: rect.top }
+          sessionStorage.setItem(KEY, JSON.stringify(data))
+        }
+      })
+      const raw = sessionStorage.getItem(KEY)
+      if (raw) {
+        sessionStorage.removeItem(KEY)
+        try {
+          const { top } = JSON.parse(raw)
+          requestAnimationFrame(() => {
+            const anchor = document.getElementById('load-more-anchor')
+            if (anchor) {
+              const curTop = anchor.getBoundingClientRect().top
+              const delta = curTop - top
+              window.scrollBy(0, delta)
+            }
+          })
+        } catch {}
+      }
+    </script>
+
     <Footer />
   </div>
 </Layout>

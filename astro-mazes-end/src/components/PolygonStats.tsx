@@ -52,7 +52,7 @@ function anchorFor(angle: number): "start" | "middle" | "end" {
   return "end"; // left half
 }
 
-const CardStats: React.FC<CardStatsProps> = ({
+const PolygonStats: React.FC<CardStatsProps> = ({
   values,
   size = 96,
   max = 10,
@@ -224,4 +224,4 @@ const CardStats: React.FC<CardStatsProps> = ({
   );
 };
 
-export default CardStats;
+export default PolygonStats;

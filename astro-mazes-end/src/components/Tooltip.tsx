@@ -2,7 +2,10 @@ import React, { useEffect, useId, useState } from 'react'
 
 export type TooltipProps = {
   children: React.ReactNode
-  content: React.ReactNode
+  // Prefer simple text props from Astro pages; falls back to `content` React node
+  title?: string
+  description?: string
+  content?: React.ReactNode
   placement?: 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   className?: string
   tooltipClassName?: string
@@ -16,6 +19,8 @@ export type TooltipProps = {
  */
 export default function Tooltip ({
   children,
+  title,
+  description,
   content,
   placement = 'top-right',
   className,
@@ -69,9 +74,9 @@ export default function Tooltip ({
   return (
     <div
       className={[
-      'relative inline-flex group focus:outline-none focus:ring-0',
-      className ?? ''
-    ].join(' ')}
+        'relative inline-flex group focus:outline-none focus:ring-0',
+        className ?? ''
+      ].join(' ')}
       tabIndex={0}
       aria-describedby={id}
       onClick={(e) => {
@@ -89,7 +94,7 @@ export default function Tooltip ({
         id={id}
         role='tooltip'
         className={[
-          'pointer-events-none absolute z-10',
+          'pointer-events-none absolute z-50',
           pos,
           'rounded-lg ring-1 ring-neutral-700 bg-neutral-900/95 text-neutral-100',
           'px-2.5 py-2 shadow-xl min-w-[180px]',
@@ -100,7 +105,12 @@ export default function Tooltip ({
           tooltipClassName ?? ''
         ].join(' ')}
       >
-        {content}
+        {content ?? (
+          <div>
+            {title ? <div className='text-[12px] font-semibold leading-snug'>{title}</div> : null}
+            {description ? <div className='mt-0.5 text-[11px] text-neutral-300 leading-snug'>{description}</div> : null}
+          </div>
+        )}
         <div className={[
           arrowPos,
           'w-2 h-2 rotate-45 bg-neutral-900/95 ring-1 ring-neutral-700'
