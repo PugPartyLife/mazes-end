@@ -54,24 +54,24 @@ export function parseArchetypeTags(tags: string | null): string[] {
 
 // Pre-built queries for common operations
 export const queries = {
-  topCommanders: (limit: number = 50) => ({
+  topCommanders: (limit: number | null | undefined = 50) => ({
     sql: `SELECT * FROM top_commanders ORDER BY popularity_score DESC LIMIT ?`,
-    params: [limit]
+    params: [limit ?? 50]
   }),
   
-  topCardsForCommander: (commanderName: string, limit: number = 50) => ({
+  topCardsForCommander: (commanderName: string, limit: number | null | undefined = 50) => ({
     sql: `SELECT * FROM top_cards_for_commanders WHERE commander_name = ? ORDER BY inclusion_rate DESC LIMIT ?`,
-    params: [commanderName, limit]
+    params: [commanderName, limit ?? 50]
   }),
   
-  commanderRecommendations: (minDecks: number = 5, limit: number = 50) => ({
+  commanderRecommendations: (minDecks: number | null | undefined = 5, limit: number | null | undefined = 50) => ({
     sql: `SELECT * FROM commander_recommendations WHERE total_decks >= ? ORDER BY popularity_score DESC LIMIT ?`,
-    params: [minDecks, limit]
+    params: [minDecks ?? 5, limit ?? 50]
   }),
   
-  tournamentsByFormat: (format: string, limit: number = 20) => ({
+  tournamentsByFormat: (format: string | null | undefined, limit: number | null | undefined = 20) => ({
     sql: `SELECT * FROM tournaments WHERE format = ? ORDER BY start_date DESC LIMIT ?`,
-    params: [format, limit]
+    params: [format ?? 'EDH', limit ?? 20]
   }),
   
   playerHistory: (playerId: string) => ({
