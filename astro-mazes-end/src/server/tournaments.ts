@@ -37,11 +37,13 @@ export async function loadTournaments(limit = 20, offset = 0): Promise<Tournamen
       hasDecklists
     }
   }`
+  
   const res = await graphql({ schema, source: query, variableValues: { limit: limit + offset, format: 'EDH' } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { tournaments: any[] }
   const rows = (data?.tournaments ?? []).slice(offset)
+  
   return rows.map((r: any) => ({
     id: r.tournamentId,
     name: r.tournamentName || r.tournamentId,
@@ -63,12 +65,14 @@ export async function loadTournamentById(tournamentId: string): Promise<Tourname
       hasDecklists
     }
   }`
+  
   const res = await graphql({ schema, source: query, variableValues: { id: tournamentId } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { tournament: any }
   const r = data?.tournament
   if (!r) return null
+  
   return {
     id: r.tournamentId,
     name: r.tournamentName || r.tournamentId,
@@ -100,22 +104,54 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
       colors
       top8Count
       commanders {
-        cardName manaCost typeLine oracleText power toughness cardFaces
-        colors colorIdentity
+        cardName
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        cardFaces
+        colors
+        colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
-        layout artist setName cardPower versatility popularity salt price scryfallUri
+        layout
+        artist
+        setName
+        cardPower
+        versatility
+        popularity
+        salt
+        price
+        scryfallUri
       }
     }
   }`
+  
   const res2 = await graphql({ schema, source: query, variableValues: { id: tournamentId } })
   if (res2.errors?.length) throw res2.errors[0]
-  // @ts-ignore
-  const data2 = res2.data
+  
+  const data2 = res2.data as { tournamentDeckBoxes: any[] }
   const rows = data2?.tournamentDeckBoxes ?? []
+  
   return rows.map((r: any) => {
     const colors = Array.isArray(r.colors) ? r.colors : parseDeckColorsString(r.deckColors)
     const commanders = (r.commanders || []).map((c: any) => mapGraphQLCardToUi(c))

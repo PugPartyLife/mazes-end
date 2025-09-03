@@ -22,9 +22,24 @@ export async function loadCardsFromDb(limit = 12): Promise<DbUICard[]> {
         colors
         colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
         layout
         artist
@@ -41,10 +56,10 @@ export async function loadCardsFromDb(limit = 12): Promise<DbUICard[]> {
 
   const res = await graphql({ schema, source: query, variableValues: { limit } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { cardsWithStats: Array<{ card: any }> }
   const rows = data?.cardsWithStats ?? []
-  return rows.map((r: any) => mapGraphQLCardToUi(r.card))
+  return rows.map((row) => mapGraphQLCardToUi(row.card))
 }
 
 export type CardWithStats = {
@@ -86,9 +101,24 @@ export async function loadCardsWithStats(limit = 24, offset = 0, q?: string): Pr
         colors
         colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
         layout
         artist
@@ -102,11 +132,13 @@ export async function loadCardsWithStats(limit = 24, offset = 0, q?: string): Pr
       }
     }
   }`
+  
   const res = await graphql({ schema, source: query, variableValues: { limit, offset, q: q ?? null } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { cardsWithStats: CardWithStats[] }
   const rows = data?.cardsWithStats ?? []
+  
   return rows.map((r: any) => ({
     card: mapGraphQLCardToUi(r.card),
     decksIncluded: r.decksIncluded,

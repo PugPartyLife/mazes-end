@@ -95,9 +95,24 @@ export async function loadTopCommanders(limit = 20) {
         colors
         colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
         layout
         artist
@@ -120,9 +135,24 @@ export async function loadTopCommanders(limit = 20) {
         colors
         colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
         layout
         artist
@@ -139,9 +169,10 @@ export async function loadTopCommanders(limit = 20) {
 
   const res = await graphql({ schema, source: query, variableValues: { limit } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { topCommanders: any[] }
   const rows = data?.topCommanders ?? []
+  
   return rows.map((r: any) => {
     const commanders: DbUICard[] = []
     if (r.commanderCard) commanders.push(mapGraphQLCardToUi(r.commanderCard))

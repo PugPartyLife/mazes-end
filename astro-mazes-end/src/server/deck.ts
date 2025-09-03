@@ -56,29 +56,92 @@ export async function loadDeckMeta(deckId: string): Promise<DeckMeta | null> {
       standing
       lastSeen
       commander1 {
-        cardName manaCost typeLine oracleText power toughness cardFaces colors colorIdentity
+        cardName
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        cardFaces
+        colors
+        colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
-        layout artist setName cardPower versatility popularity salt price scryfallUri
+        layout
+        artist
+        setName
+        cardPower
+        versatility
+        popularity
+        salt
+        price
+        scryfallUri
       }
       commander2 {
-        cardName manaCost typeLine oracleText power toughness cardFaces colors colorIdentity
+        cardName
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        cardFaces
+        colors
+        colorIdentity
         imageUris {
-          small normal large png artCrop borderCrop
-          face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-          face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
         }
-        layout artist setName cardPower versatility popularity salt price scryfallUri
+        layout
+        artist
+        setName
+        cardPower
+        versatility
+        popularity
+        salt
+        price
+        scryfallUri
       }
     }
   }`
+  
   const res = await graphql({ schema, source: query, variableValues: { id: deckId } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { deckDetails: any }
   const r = data?.deckDetails
   if (!r) return null
 
@@ -105,24 +168,58 @@ export async function loadDeckCards(deckId: string): Promise<DeckCardEntry[]> {
   const query = `query($id: String!) {
     deck(id: $id) {
       cards {
-        quantity deckSection
+        quantity
+        deckSection
         card {
-          cardName manaCost typeLine oracleText power toughness cardFaces colors colorIdentity
+          cardName
+          manaCost
+          typeLine
+          oracleText
+          power
+          toughness
+          cardFaces
+          colors
+          colorIdentity
           imageUris {
-            small normal large png artCrop borderCrop
-            face0Small face0Normal face0Large face0Png face0ArtCrop face0BorderCrop
-            face1Small face1Normal face1Large face1Png face1ArtCrop face1BorderCrop
+            small
+            normal
+            large
+            png
+            artCrop
+            borderCrop
+            face0Small
+            face0Normal
+            face0Large
+            face0Png
+            face0ArtCrop
+            face0BorderCrop
+            face1Small
+            face1Normal
+            face1Large
+            face1Png
+            face1ArtCrop
+            face1BorderCrop
           }
-          layout artist setName cardPower versatility popularity salt price scryfallUri
+          layout
+          artist
+          setName
+          cardPower
+          versatility
+          popularity
+          salt
+          price
+          scryfallUri
         }
       }
     }
   }`
+  
   const res = await graphql({ schema, source: query, variableValues: { id: deckId } })
   if (res.errors?.length) throw res.errors[0]
-  // @ts-ignore
-  const data = res.data
+  
+  const data = res.data as { deck: { cards: any[] } | null }
   const rows = data?.deck?.cards ?? []
+  
   return rows.map((r: any) => {
     const card = mapGraphQLCardToUi(r.card)
     const deckSection = String(r.deckSection || '').toLowerCase()
