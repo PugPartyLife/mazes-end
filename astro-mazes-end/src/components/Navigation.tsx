@@ -38,14 +38,14 @@ export default function Navigation(): React.JSX.Element {
           {/* Brand */}
           <a
             href="/"
-            className={`hidden md:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide text-me-yellow ${scrolled ? 'opacity-100 drop-shadow-[0_0_6px_rgba(218,162,28,0.35)]' : 'opacity-90'}`}
+            className={`hidden lg:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide text-me-yellow ${scrolled ? 'opacity-100 drop-shadow-[0_0_6px_rgba(218,162,28,0.35)]' : 'opacity-90'}`}
             aria-label="The Maze's End Home"
           >
             <Logo size={22} />
             The Maze's End
           </a>
           {/* Desktop Navigation - removed ml-10 to center properly */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <div className="flex items-center space-x-8">
               {navItems.map((item: NavItem) => (
                 <a
@@ -69,7 +69,7 @@ export default function Navigation(): React.JSX.Element {
           </div>
 
           {/* Mobile menu button - positioned absolutely to stay on the right */}
-          <div className="md:hidden absolute right-4">
+          <div className="lg:hidden absolute right-4">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`p-2 rounded-md ${scrolled ? 'text-gray-100' : 'text-white'}`}
@@ -82,7 +82,7 @@ export default function Navigation(): React.JSX.Element {
 
       {/* Mobile Navigation */}
       {isOpen && (
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 shadow-lg">
             {navItems.map((item: NavItem) => (
               <a
