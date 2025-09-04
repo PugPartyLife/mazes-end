@@ -6,24 +6,25 @@ import CommanderBox from "../components/CommanderBox";
 import { loadTopCommanders } from "../server/commanders";
 import PageHeader from "../components/PageHeader";
 
-
-
 const commanders = await loadTopCommanders(20);
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
-  <div class="min-h-screen bg-gray-900 bg-vignette p-16">
+  <div class="min-h-screen bg-gray-900 bg-vignette">
     <Navigation client:idle />
-    <div class="mx-auto max-w-7xl">
-      <PageHeader client:idle title="Top Commanders" placeholder="Search commanders..." />
-    </div>
+    
+    <div class="px-4 sm:px-6 lg:px-8 pt-16 pb-16">
+      <div class="mx-auto max-w-7xl">
+        <PageHeader client:idle title="Top Commanders" placeholder="Search commanders..." />
+      </div>
 
-    <div id="commander-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      {commanders.map((c) => (
-        <div class="commander-item" data-name={c.name} data-colors={(c.colors || []).join("")}>
-          <CommanderBox client:visible {...c} />
-        </div>
-      ))}
+      <div id="commander-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {commanders.map((c) => (
+          <div class="commander-item" data-name={c.name} data-colors={(c.colors || []).join("")}>
+            <CommanderBox client:visible {...c} />
+          </div>
+        ))}
+      </div>
     </div>
 
     <script type="module">
