@@ -1,7 +1,5 @@
 // lib/graph/comboGraphClient.ts
-import { spawn, ChildProcess } from 'child_process'
 import { EventEmitter } from 'events'
-import path from 'path'
 
 interface ComboGraphRequest {
   id: number
@@ -83,172 +81,134 @@ export interface GraphStatistics {
 }
 
 class ComboGraphClient extends EventEmitter {
-  private process: ChildProcess | null = null
-  private requestId = 0
-  private pendingRequests = new Map<number, { resolve: Function; reject: Function }>()
-  private buffer = ''
-  private isReady = false
-  private startupPromise: Promise<void>
+  private baseUrl: string
+  private isReady: boolean = false
 
-  constructor(private pythonScriptPath: string, private dataFilePath: string) {
+  constructor(host: string = 'localhost', port: number = 8080) {
     super()
-    this.startupPromise = this.start()
+    this.baseUrl = `http://${host}:${port}`
+    this.checkHealth()
   }
 
-  private async start(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const scriptPath = path.resolve(this.pythonScriptPath)
-      const dataPath = path.resolve(this.dataFilePath)
-
-      console.log(`Starting combo graph server with data from ${dataPath}...`)
-      
-      this.process = spawn('python3', [scriptPath, dataPath], {
-        stdio: ['pipe', 'pipe', 'pipe']
-      })
-
-      this.process.on('error', (error) => {
-        console.error('Failed to start Python process:', error)
-        reject(error)
-      })
-
-      this.process.stderr?.on('data', (data) => {
-        console.log('[Python]', data.toString().trim())
-        // Check if server is ready
-        if (data.toString().includes('server started')) {
-          this.isReady = true
-          resolve()
-        }
-      })
-
-      this.process.stdout?.on('data', (data) => {
-        this.buffer += data.toString()
-        const lines = this.buffer.split('\n')
-        this.buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const response: ComboGraphResponse = JSON.parse(line)
-              const request = this.pendingRequests.get(response.id)
-              if (request) {
-                if (response.error) {
-                  request.reject(new Error(response.error.message))
-                } else {
-                  request.resolve(response.result)
-                }
-                this.pendingRequests.delete(response.id)
-              }
-            } catch (error) {
-              console.error('Failed to parse response:', error)
-            }
-          }
-        }
-      })
-
-      this.process.on('close', (code) => {
-        console.log(`Python process exited with code ${code}`)
-        this.isReady = false
-        // Reject all pending requests
-        for (const [, request] of this.pendingRequests) {
-          request.reject(new Error('Process closed'))
-        }
-        this.pendingRequests.clear()
-      })
-
-      // Set a timeout for startup
-      setTimeout(() => {
-        if (!this.isReady) {
-          reject(new Error('Python process startup timeout'))
-        }
-      }, 10000)
-    })
+  private async checkHealth(): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/health`)
+      if (response.ok) {
+        const data = await response.json()
+        console.log(`Combo server healthy: ${data.combos_loaded} combos loaded`)
+        this.isReady = true
+      }
+    } catch (error) {
+      console.error('Failed to connect to combo server:', error)
+      // Retry after 5 seconds
+      setTimeout(() => this.checkHealth(), 5000)
+    }
   }
 
   async ensureReady(): Promise<void> {
-    await this.startupPromise
+    if (!this.isReady) {
+      // Wait for server to be ready
+      await new Promise<void>((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (this.isReady) {
+            clearInterval(checkInterval)
+            resolve()
+          }
+        }, 100)
+      })
+    }
   }
 
-  private async request<T>(method: string, params: Record<string, any> = {}): Promise<T> {
+  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     await this.ensureReady()
     
-    if (!this.process || !this.isReady) {
-      throw new Error('Graph server not ready')
-    }
-
-    const id = ++this.requestId
-    const request: ComboGraphRequest = { id, method, params }
-
-    return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject })
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers
+        }
+      })
       
-      // Set timeout
-      const timeout = setTimeout(() => {
-        this.pendingRequests.delete(id)
-        reject(new Error(`Request timeout: ${method}`))
-      }, 30000)
-
-      // Clear timeout on resolution
-      const originalResolve = resolve
-      resolve = (value) => {
-        clearTimeout(timeout)
-        originalResolve(value)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || `HTTP ${response.status}: ${response.statusText}`)
       }
-
-      this.process!.stdin?.write(JSON.stringify(request) + '\n')
-    })
+      
+      return response.json()
+    } catch (error) {
+      console.error(`Request to ${endpoint} failed:`, error)
+      throw error
+    }
   }
 
   // Public API methods
 
   async getComboById(comboId: string): Promise<ComboData | null> {
-    return this.request<ComboData | null>('getComboById', { comboId })
+    try {
+      return await this.request<ComboData>(`/api/combo/${encodeURIComponent(comboId)}`)
+    } catch (error: any) {
+      if (error.message.includes('404')) {
+        return null
+      }
+      throw error
+    }
   }
 
   async getDistance1Combos(comboId: string): Promise<Distance1Result> {
-    return this.request<Distance1Result>('getDistance1Combos', { comboId })
+    return this.request<Distance1Result>(`/api/combo/${encodeURIComponent(comboId)}/distance1`)
   }
 
   async getDistance2Combos(comboId: string): Promise<any> {
-    return this.request('getDistance2Combos', { comboId })
+    // Not implemented in the server yet
+    throw new Error('getDistance2Combos not implemented')
   }
 
   async findComboChainsFromCombo(comboId: string, maxDepth = 3): Promise<any[]> {
-    return this.request('findComboChainsFromCombo', { comboId, maxDepth })
+    // Not implemented in the server yet
+    throw new Error('findComboChainsFromCombo not implemented')
   }
 
   async searchCombosByCard(cardName: string): Promise<ComboSearchResult> {
-    return this.request<ComboSearchResult>('searchCombosByCard', { cardName })
+    return this.request<ComboSearchResult>(`/api/combos/card/${encodeURIComponent(cardName)}`)
   }
 
   async getCardImportance(cardName?: string): Promise<CardImportance | { top_cards: any[] }> {
-    return this.request('getCardImportance', cardName ? { cardName } : {})
+    // Not implemented in the server yet
+    throw new Error('getCardImportance not implemented')
   }
 
   async findComboPackages(minSharedCards = 2): Promise<ComboPackage[]> {
-    return this.request<ComboPackage[]>('findComboPackages', { minSharedCards })
+    return this.request<ComboPackage[]>(`/api/combos/packages?min_shared_cards=${minSharedCards}`)
   }
 
   async getGraphStatistics(): Promise<GraphStatistics> {
-    return this.request<GraphStatistics>('getGraphStatistics')
+    return this.request<GraphStatistics>('/api/combos/statistics')
   }
 
   async getCombosByColorIdentity(colorIdentity: string): Promise<any> {
-    return this.request('getCombosByColorIdentity', { colorIdentity })
+    // Not implemented in the server yet
+    throw new Error('getCombosByColorIdentity not implemented')
   }
 
   async getRelatedCombos(comboId: string, limit = 10): Promise<any> {
-    return this.request('getRelatedCombos', { comboId, limit })
+    // Not implemented in the server yet
+    throw new Error('getRelatedCombos not implemented')
   }
 
   async getComboPackageById(comboIds: string[], minSharedCards = 2): Promise<ComboPackage> {
-    return this.request<ComboPackage>('getComboPackageById', { comboIds, minSharedCards })
+    return this.request<ComboPackage>('/api/combos/package', {
+      method: 'POST',
+      body: JSON.stringify({
+        combo_ids: comboIds,
+        min_shared_cards: minSharedCards
+      })
+    })
   }
 
   close(): void {
-    if (this.process) {
-      this.process.kill()
-      this.process = null
-    }
+    // Nothing to close for HTTP client
   }
 }
 
@@ -257,16 +217,15 @@ let graphClientInstance: ComboGraphClient | null = null
 
 export function getComboGraphClient(): ComboGraphClient {
   if (!graphClientInstance) {
-    // These paths should be configured based on your project structure
-    const pythonScriptPath = process.env.COMBO_GRAPH_SCRIPT_PATH || './python/combo_graph_server.py'
-    const dataFilePath = process.env.COMBO_GRAPH_DATA_PATH || './data/commander_spellbook_data.json'
+    const host = process.env.COMBO_GRAPH_HOST || 'localhost'
+    const port = parseInt(process.env.COMBO_GRAPH_PORT || '8080', 10)
     
-    graphClientInstance = new ComboGraphClient(pythonScriptPath, dataFilePath)
+    graphClientInstance = new ComboGraphClient(host, port)
   }
   return graphClientInstance
 }
 
-// Cleanup on process exit
+// No cleanup needed for HTTP client
 process.on('exit', () => {
   if (graphClientInstance) {
     graphClientInstance.close()
