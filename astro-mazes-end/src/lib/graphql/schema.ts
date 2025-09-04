@@ -1,6 +1,8 @@
 import SchemaBuilder from '@pothos/core'
 import DataloaderPlugin from '@pothos/plugin-dataloader'
 import { queryDatabase, queryDatabaseSingle, queries, parseColors, parseImageUris, parseArchetypeTags } from '../db/sqlite'
+import { getComboGraphClient } from '../graph/comboGraphClient'
+import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult } from '../graph/comboGraphClient'
 import type { 
   TopCommander, 
   TopCardForCommander, 
@@ -32,6 +34,18 @@ export const builder = new SchemaBuilder<{
     CardWithStats: any
     DeckBoxData: any
     DeckMetaData: any
+    Combo: ComboData
+    ComboCard: any
+    Distance1ComboResult: Distance1Result
+    ComboSearchResult: ComboSearchResult
+    CardImportanceResult: any
+    ComboPackage: ComboPackage
+    ComboGraphStats: GraphStatistics
+    Distance1Combo: any
+    ComboSummary: any
+    ComboConnection: any
+    CardVersatility: any
+    ColorCount: any
   }
 }>({
   plugins: [DataloaderPlugin],
@@ -407,6 +421,240 @@ builder.objectType('Card', {
   }),
 })
 
+builder.objectType('Combo', {
+  fields: (t) => ({
+    id: t.exposeString('id'),
+    cardNames: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.card_names || []
+    }),
+    produces: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.produces || []
+    }),
+    prerequisites: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.prerequisites || []
+    }),
+    steps: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.steps || []
+    }),
+    colorIdentity: t.exposeString('color_identity'),
+    cards: t.field({
+      type: ['ComboCard'],
+      resolve: (parent) => parent.cards || []
+    })
+  })
+})
+
+// ComboCard type
+builder.objectType('ComboCard', {
+  fields: (t) => ({
+    name: t.exposeString('name'),
+    combosCount: t.exposeInt('combos_count'),
+    // Link to your existing Card type
+    cardData: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.name]
+        )
+        return results[0] || null
+      }
+    })
+  })
+})
+
+// Distance 1 result type
+builder.objectType('Distance1ComboResult', {
+  fields: (t) => ({
+    total: t.exposeInt('total'),
+    combos: t.field({
+      type: ['Distance1Combo'],
+      resolve: (parent) => parent.combos || []
+    })
+  })
+})
+
+builder.objectType('Distance1Combo', {
+  fields: (t) => ({
+    id: t.exposeString('id'),
+    sharedCards: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.shared_cards || []
+    }),
+    sharedCardsCount: t.exposeInt('shared_cards_count'),
+    colorIdentity: t.exposeString('color_identity'),
+    produces: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.produces || []
+    }),
+    combo: t.field({
+      type: 'Combo',
+      nullable: true,
+      resolve: async (parent) => {
+        const client = getComboGraphClient()
+        return client.getComboById(parent.id)
+      }
+    })
+  })
+})
+
+// Combo search result
+builder.objectType('ComboSearchResult', {
+  fields: (t) => ({
+    cardName: t.exposeString('card_name'),
+    totalCombos: t.exposeInt('total_combos'),
+    combos: t.field({
+      type: ['ComboSummary'],
+      resolve: (parent) => parent.combos || []
+    })
+  })
+})
+
+builder.objectType('ComboSummary', {
+  fields: (t) => ({
+    id: t.exposeString('id'),
+    colorIdentity: t.exposeString('color_identity'),
+    produces: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.produces || []
+    }),
+    cardNames: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.card_names || []
+    })
+  })
+})
+
+// Card importance
+builder.objectType('CardImportanceResult', {
+  fields: (t) => ({
+    name: t.exposeString('name', { nullable: true }),
+    combosCount: t.exposeInt('combos_count'),
+    degreeCentrality: t.exposeFloat('degree_centrality'),
+    betweennessCentrality: t.exposeFloat('betweenness_centrality'),
+    eigenvectorCentrality: t.exposeFloat('eigenvector_centrality'),
+    comboIds: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.combo_ids || []
+    })
+  })
+})
+
+// Combo package
+builder.objectType('ComboPackage', {
+  fields: (t) => ({
+    comboIds: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.combo_ids || []
+    }),
+    comboCount: t.exposeInt('combo_count'),
+    totalUniqueCards: t.exposeInt('total_unique_cards'),
+    coreCards: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.core_cards || []
+    }),
+    allCards: t.field({
+      type: ['String'],
+      resolve: (parent) => parent.all_cards || []
+    }),
+    combos: t.field({
+      type: ['Combo'],
+      resolve: async (parent) => {
+        const client = getComboGraphClient()
+        const combos = await Promise.all(
+          parent.combo_ids.slice(0, 10).map(id => client.getComboById(id))
+        )
+        return combos.filter((combo): combo is ComboData => combo !== null)
+      }
+    })
+  })
+})
+
+// Graph statistics
+builder.objectType('ComboGraphStats', {
+  fields: (t) => ({
+    totalCombos: t.exposeInt('total_combos'),
+    totalCards: t.exposeInt('total_cards'),
+    totalEdges: t.exposeInt('total_edges'),
+    graphDensity: t.exposeFloat('graph_density'),
+    avgCardsPerCombo: t.exposeFloat('avg_cards_per_combo'),
+    avgCombosPerCard: t.exposeFloat('avg_combos_per_card'),
+    mostConnectedCombos: t.field({
+      type: ['ComboConnection'],
+      resolve: (parent) => {
+        return parent.most_connected_combos.map(([id, count]: [string, number]) => ({
+          combo_id: id,
+          connection_count: count
+        }))
+      }
+    }),
+    mostVersatileCards: t.field({
+      type: ['CardVersatility'],
+      resolve: (parent) => {
+        return parent.most_versatile_cards.map(([name, count]: [string, number]) => ({
+          card_name: name,
+          combo_count: count
+        }))
+      }
+    }),
+    colorDistribution: t.field({
+      type: ['ColorCount'],
+      resolve: (parent) => {
+        return Object.entries(parent.color_distribution || {}).map(([color, count]) => ({
+          color,
+          count: count as number
+        }))
+      }
+    })
+  })
+})
+
+builder.objectType('ComboConnection', {
+  fields: (t) => ({
+    comboId: t.exposeString('combo_id'),
+    connectionCount: t.exposeInt('connection_count'),
+    combo: t.field({
+      type: 'Combo',
+      nullable: true,
+      resolve: async (parent) => {
+        const client = getComboGraphClient()
+        return client.getComboById(parent.combo_id)
+      }
+    })
+  })
+})
+
+builder.objectType('CardVersatility', {
+  fields: (t) => ({
+    cardName: t.exposeString('card_name'),
+    comboCount: t.exposeInt('combo_count'),
+    card: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.card_name]
+        )
+        return results[0] || null
+      }
+    })
+  })
+})
+
+builder.objectType('ColorCount', {
+  fields: (t) => ({
+    color: t.exposeString('color'),
+    count: t.exposeInt('count')
+  })
+})
+
+
 builder.queryType({
   fields: (t) => ({
     // Cards page: aggregated performance stats + card
@@ -672,8 +920,74 @@ builder.queryType({
         )
       },
     }),
+    combo: t.field({
+      type: 'Combo',
+      nullable: true,
+      args: {
+        id: t.arg.string({ required: true })
+      },
+      resolve: async (_, { id }) => {
+        const client = getComboGraphClient()
+        return client.getComboById(id)
+      }
+    }),
+
+    comboDistance1: t.field({
+      type: 'Distance1ComboResult',
+      args: {
+        comboId: t.arg.string({ required: true })
+      },
+      resolve: async (_, { comboId }) => {
+        const client = getComboGraphClient()
+        return client.getDistance1Combos(comboId)
+      }
+    }),
+
+    combosByCard: t.field({
+      type: 'ComboSearchResult',
+      args: {
+        cardName: t.arg.string({ required: true })
+      },
+      resolve: async (_, { cardName }) => {
+        const client = getComboGraphClient()
+        return client.searchCombosByCard(cardName)
+      }
+    }),
+
+    comboPackages: t.field({
+      type: ['ComboPackage'],
+      args: {
+        minSharedCards: t.arg.int({ defaultValue: 2 })
+      },
+      resolve: async (_, { minSharedCards }) => {
+        const client = getComboGraphClient()
+        return client.findComboPackages(minSharedCards ?? 2)
+      }
+    }),
+
+    comboGraphStatistics: t.field({
+      type: 'ComboGraphStats',
+      resolve: async () => {
+        const client = getComboGraphClient()
+        return client.getGraphStatistics()
+      }
+    }),
+
+    comboPackage: t.field({
+      type: 'ComboPackage',
+      args: {
+        comboIds: t.arg.stringList({ required: true }),
+        minSharedCards: t.arg.int({ defaultValue: 2 })
+      },
+      resolve: async (_, { comboIds, minSharedCards }) => {
+        const client = getComboGraphClient()
+        return client.getComboPackageById(comboIds, minSharedCards ?? 2)
+      }
+    })
   }),
 })
+
+
 
 // --------------
 // Extra object types used by the new queries
