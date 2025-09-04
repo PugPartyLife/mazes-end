@@ -1,90 +1,155 @@
-// Server-only card data helpers
-import { queryDatabase, parseImageUris } from '../lib/db/sqlite'
+// Server-only card data helpers (now backed by GraphQL)
+import { graphql } from 'graphql'
+import { schema } from '../lib/graphql/schema'
+import { mapGraphQLCardToUi } from './cardRowToUi'
+import type { DbUICard } from '../types'
 
-type DbCardRow = {
-  card_name: string
-  mana_cost: string | null
-  type_line: string | null
-  oracle_text: string | null
-  power: string | null
-  toughness: string | null
-  colors: string | null // JSON
-  color_identity: string | null // JSON
-  image_uris: string | null // JSON
-  layout: string | null
-  card_faces: string | null // JSON
-  artist: string | null
-  set_name: string | null
-  scryfall_uri: string | null
+/**
+ * Load top cards using a performance-weighted score from core tables.
+ * Score blends: frequency + top finishes + standing + win rate.
+ */
+export async function loadCardsFromDb(limit = 12): Promise<DbUICard[]> {
+  const query = `query($limit: Int!) {
+    cardsWithStats(limit: $limit) {
+      card {
+        cardName
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        cardFaces
+        colors
+        colorIdentity
+        imageUris {
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
+        }
+        layout
+        artist
+        setName
+        cardPower
+        versatility
+        popularity
+        salt
+        price
+        scryfallUri
+      }
+    }
+  }`
+
+  const res = await graphql({ schema, source: query, variableValues: { limit } })
+  if (res.errors?.length) throw res.errors[0]
+  
+  const data = res.data as { cardsWithStats: Array<{ card: any }> }
+  const rows = data?.cardsWithStats ?? []
+  return rows.map((row) => mapGraphQLCardToUi(row.card))
 }
 
-function parseJsonArray(value: string | null): string[] {
-  try {
-    const arr = value ? JSON.parse(value) : []
-    return Array.isArray(arr) ? arr : []
-  } catch {
-    return []
-  }
+export type CardWithStats = {
+  card: DbUICard
+  decksIncluded: number
+  tournamentsSeen: number
+  top8WithCard: number
+  winsWithCard: number
+  lossesWithCard: number
+  drawsWithCard: number
+  avgWinRateWithCard: number
+  avgStandingWithCard: number
+  inclusionRate: number
+  score: number
 }
 
-/** Load top EDH cards from DB and shape as Scryfall-like objects for MtgCard. */
-export async function loadCardsFromDb(limit = 12): Promise<any[]> {
-  let rows = await queryDatabase<DbCardRow>(
-    `
-      WITH ranked AS (
-        SELECT dc.card_name, COUNT(DISTINCT dc.deck_id) AS decks_included
-        FROM deck_cards dc
-        JOIN decks d ON d.deck_id = dc.deck_id
-        WHERE d.has_decklist = 1 AND dc.deck_section != 'commander'
-        GROUP BY dc.card_name
-        ORDER BY decks_included DESC
-        LIMIT ?
-      )
-      SELECT c.card_name, c.mana_cost, c.type_line, c.oracle_text, c.power, c.toughness,
-             c.colors, c.color_identity, c.image_uris, c.layout, c.card_faces,
-             c.artist, c.set_name, c.scryfall_uri
-      FROM ranked r
-      JOIN cards c ON c.card_name = r.card_name
-      ORDER BY r.decks_included DESC
-    `,
-    [limit]
-  )
-
-  if (rows.length === 0) {
-    rows = await queryDatabase<DbCardRow>(
-      `SELECT card_name, mana_cost, type_line, oracle_text, power, toughness,
-              colors, color_identity, image_uris, layout, card_faces,
-              artist, set_name, scryfall_uri
-       FROM cards WHERE image_uris IS NOT NULL ORDER BY COALESCE(price_usd, 0) DESC LIMIT ?`,
-      [limit]
-    )
-  }
-  return rows.map((r) => {
-    const colors = parseJsonArray(r.colors)
-    const color_identity = parseJsonArray(r.color_identity)
-    const image_uris = parseImageUris(r.image_uris)
-    let card_faces: any[] | undefined
-    try {
-      card_faces = r.card_faces ? JSON.parse(r.card_faces) : undefined
-    } catch {
-      card_faces = undefined
+/** Paginated cards with performance stats for richer UI. */
+export async function loadCardsWithStats(limit = 24, offset = 0, q?: string): Promise<CardWithStats[]> {
+  const query = `query($limit: Int!, $offset: Int!, $q: String) {
+    cardsWithStats(limit: $limit, offset: $offset, q: $q) {
+      decksIncluded
+      tournamentsSeen
+      top8WithCard
+      winsWithCard
+      lossesWithCard
+      drawsWithCard
+      avgWinRateWithCard
+      avgStandingWithCard
+      inclusionRate
+      score
+      card {
+        cardName
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        cardFaces
+        colors
+        colorIdentity
+        imageUris {
+          small
+          normal
+          large
+          png
+          artCrop
+          borderCrop
+          face0Small
+          face0Normal
+          face0Large
+          face0Png
+          face0ArtCrop
+          face0BorderCrop
+          face1Small
+          face1Normal
+          face1Large
+          face1Png
+          face1ArtCrop
+          face1BorderCrop
+        }
+        layout
+        artist
+        setName
+        cardPower
+        versatility
+        popularity
+        salt
+        price
+        scryfallUri
+      }
     }
-    return {
-      object: 'card',
-      name: r.card_name,
-      mana_cost: r.mana_cost || undefined,
-      type_line: r.type_line || undefined,
-      oracle_text: r.oracle_text || undefined,
-      power: r.power || undefined,
-      toughness: r.toughness || undefined,
-      colors,
-      color_identity,
-      image_uris,
-      layout: r.layout || undefined,
-      card_faces,
-      artist: r.artist || undefined,
-      set_name: r.set_name || undefined,
-      scryfall_uri: r.scryfall_uri || undefined
-    }
-  })
+  }`
+  
+  const res = await graphql({ schema, source: query, variableValues: { limit, offset, q: q ?? null } })
+  if (res.errors?.length) throw res.errors[0]
+  
+  const data = res.data as { cardsWithStats: CardWithStats[] }
+  const rows = data?.cardsWithStats ?? []
+  
+  return rows.map((r: any) => ({
+    card: mapGraphQLCardToUi(r.card),
+    decksIncluded: r.decksIncluded,
+    tournamentsSeen: r.tournamentsSeen,
+    top8WithCard: r.top8WithCard,
+    winsWithCard: r.winsWithCard,
+    lossesWithCard: r.lossesWithCard,
+    drawsWithCard: r.drawsWithCard,
+    avgWinRateWithCard: r.avgWinRateWithCard,
+    avgStandingWithCard: r.avgStandingWithCard,
+    inclusionRate: r.inclusionRate,
+    score: r.score
+  }))
 }

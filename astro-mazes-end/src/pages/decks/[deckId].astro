@@ -1,0 +1,68 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation";
+import Footer from "../../components/Footer";
+import PageHeader from "../../components/PageHeader";
+import MtgCard from "../../components/MtgCard";
+import { loadDeckMeta, loadDeckCards } from "../../server/deck";
+
+const { deckId } = Astro.params as { deckId: string };
+const meta = await loadDeckMeta(deckId);
+if (!meta) {
+  throw new Error(`Deck not found: ${deckId}`);
+}
+const cards = await loadDeckCards(deckId);
+
+// Group by primaryType (and keep a stable order)
+const order = [
+  'Commander','Creature','Instant','Sorcery','Artifact','Enchantment','Planeswalker','Battle','Land','Other'
+];
+const groups = new Map<string, any[]>();
+for (const c of cards) {
+  const key = c.deckSection === 'commander' ? 'Commander' : (c.primaryType || 'Other');
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key).push(c);
+}
+const grouped = order
+  .filter(k => groups.has(k))
+  .map(k => ({ key: k, items: groups.get(k) || [] }));
+---
+
+<Layout title={`Deck – ${meta.playerName}`}>
+  <div class="min-h-screen bg-gray-900 bg-vignette p-6 sm:p-10 lg:p-16">
+    <Navigation client:idle />
+    <div class="mx-auto max-w-7xl">
+      <PageHeader client:idle title={`Deck: ${meta.playerName}`} subtitle={meta.tournamentName || ''} placeholder="Search cards..." />
+
+      <div class="mb-6 text-sm text-neutral-300 flex flex-wrap items-center gap-x-4 gap-y-2">
+        {meta.standing != null ? (<span>Finish: {meta.standing}</span>) : null}
+        <span>Record: {meta.wins}-{meta.losses}{meta.draws ? `-${meta.draws}` : ''}</span>
+        {meta.totalPlayers ? (<span>Players: {meta.totalPlayers}</span>) : null}
+        {meta.lastSeen ? (<span>{new Date(meta.lastSeen).toLocaleDateString()}</span>) : null}
+      </div>
+
+      {grouped.length === 0 ? (
+        <div class="text-sm text-neutral-400">No cards found for this deck.</div>
+      ) : null}
+
+      {grouped.map((g) => (
+        <section>
+          <h2 class="mt-8 mb-3 text-sm uppercase tracking-wide text-neutral-300">{g.key}</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {g.items.map(({ card }) => (
+              <div class="relative aspect-[63/88] w-full max-w-sm mx-auto">
+                <div class="absolute inset-0 overflow-visible rounded-[1rem] bg-transparent">
+                  <div class="w-full h-full">
+                    <MtgCard client:visible card={card} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+
+    <Footer />
+  </div>
+</Layout>

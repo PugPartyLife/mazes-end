@@ -1,23 +1,42 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
-import MtgCard from "../components/MtgCard";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
+import CommanderBox from "../components/CommanderBox";
+import { loadTopCommanders } from "../server/commanders";
+import PageHeader from "../components/PageHeader";
 
-// get all commanders from the database via sqlite_main.py show_commander_meta
-const cards = [{}]
+
+
+const commanders = await loadTopCommanders(20);
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
-  <div class="min-h-screen bg-gray-900 p-16">
-    <Navigation client:load />
-
-    <div
-      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
-    >
-      {cards.map((card, index) => <MtgCard index={index} card={card} />)}
+  <div class="min-h-screen bg-gray-900 bg-vignette p-16">
+    <Navigation client:idle />
+    <div class="mx-auto max-w-7xl">
+      <PageHeader client:idle title="Top Commanders" placeholder="Search commanders..." />
     </div>
 
-    <Footer client:load />
+    <div id="commander-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {commanders.map((c) => (
+        <div class="commander-item" data-name={c.name} data-colors={(c.colors || []).join("")}>
+          <CommanderBox client:visible {...c} />
+        </div>
+      ))}
+    </div>
+
+    <script type="module">
+      import { setupManaFilter } from '/src/scripts/manaFilter.ts';
+      setupManaFilter({
+        gridSelector: '#commander-grid',
+        itemSelector: '.commander-item',
+        textAttrs: ['data-name'],
+        colorsAttr: 'data-colors',
+        colorMode: 'and'
+      });
+    </script>
+
+    <Footer />
   </div>
 </Layout>

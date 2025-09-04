@@ -5,3 +5,29 @@
 .animate-strikethrough::before {
   transform: scaleX(1);
 }
+
+/* Subtle radial vignette to lift content */
+.bg-vignette {
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.06), rgba(255,255,255,0) 45%);
+  background-blend-mode: overlay;
+}
+
+/* Optional named shadows for consistency */
+.shadow-elev-1 { box-shadow: 0 15px 40px rgba(0,0,0,.55); }
+.shadow-elev-2 { box-shadow: 0 20px 60px rgba(0,0,0,.55); }
+
+/* Minimal scrollbars for rules text in MtgCard */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.35) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.35);
+  border-radius: 9999px;
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}

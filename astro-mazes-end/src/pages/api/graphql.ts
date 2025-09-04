@@ -1,10 +1,7 @@
-import SchemaBuilder from '@pothos/core'
-import DataloaderPlugin from '@pothos/plugin-dataloader'
 import { createYoga } from 'graphql-yoga'
-import { builder } from '../../lib/graphql/schema.ts'
+import { schema } from '../../lib/graphql/schema.ts'
 
-// Build the schema
-const schema = builder.toSchema()
+// Build the schema is handled in lib/graphql/schema.ts
 
 const yoga = createYoga({
   schema,
@@ -13,18 +10,17 @@ const yoga = createYoga({
   // Enable GraphiQL
   graphiql: {
     title: 'MTG Tournament GraphQL API',
-    defaultQuery: `query {
+    defaultQuery: `query Sample {
   summary {
     totalTournaments
     totalDecks
-    totalCardEntries
-    uniqueCards
+    totalCards
+    totalDeckCards
   }
-  
-  topCards(limit: 5) {
-    name
-    totalEntries
-    avgWinRate
+  cardsWithStats(limit: 3) {
+    score
+    inclusionRate
+    card { cardName typeLine setName }
   }
 }`
   }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, Check } from 'lucide-react';
 import CtaButton from '../components/CtaButton.tsx';
 
 interface Stat {
@@ -7,7 +7,7 @@ interface Stat {
   label: string;
 }
 
-const WORDS = ['1. Learn', '2. Study', '3. Practice', '4. Win'] as const;
+const STEPS = ['1. Learn', '2. Study', '3. Practice', '4. Win'] as const;
 const STATS: Stat[] = [
   { number: '1091', label: 'Commanders' },
   { number: '9786', label: 'Unique Cards' },
@@ -16,27 +16,11 @@ const STATS: Stat[] = [
 ];
 
 export default function Banner() {
-  const [currentWord, setCurrentWord] = useState<number>(0);
-  const strikethroughRef = useRef<HTMLSpanElement>(null);
+  const [step, setStep] = useState<number>(0);
 
   useEffect(() => {
-    const element = strikethroughRef.current;
-
-    const startStrikethrough = () => {
-      if (element) element.classList.add('animate-strikethrough');
-    };
-
-    const endStrikethroughAndChangeWord = () => {
-      if (element) element.classList.remove('animate-strikethrough');
-      setCurrentWord((prev) => (prev + 1) % WORDS.length);
-    };
-
-    const syncedInterval = setInterval(() => {
-      startStrikethrough();
-      setTimeout(endStrikethroughAndChangeWord, 500);
-    }, 2000);
-
-    return () => clearInterval(syncedInterval);
+    const id = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 1600);
+    return () => clearInterval(id);
   }, []);
 
   return (
@@ -63,17 +47,6 @@ export default function Banner() {
           <h1 className="font-serif font-bold text-4xl md:text-6xl text-me-yellow leading-tight">
             THE MAZE'S END
             <br />
-            <div className="relative">
-              <span 
-                ref={strikethroughRef}
-                className="relative inline-block font-handwritten text-4xl md:text-5xl bg-gradient-to-r text-white
-                          before:content-[''] before:absolute before:top-1/2 before:left-0 before:h-0.5 
-                          before:w-full before:bg-current before:scale-x-0 before:origin-left 
-                          before:transition-transform before:duration-500 before:ease-out"
-              >
-                {WORDS[currentWord]}
-              </span>
-            </div>
           </h1>
 
           {/* Subheading */}

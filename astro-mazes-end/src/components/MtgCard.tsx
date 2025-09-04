@@ -1,11 +1,16 @@
 import React, { useMemo, useState } from 'react'
 import ManaText from '../components/ManaText'
-import CardStats from '../components/CardStats'
+import PolygonStats from '../components/PolygonStats'
+import StatsChips from '../components/StatsChips'
 import type { DbUICard } from '../types'
+import { symbols as allSets } from '../data/magicSets'
+import Tooltip from '../components/Tooltip'
 
 type MtgCardProps = {
   card: DbUICard
   index?: number | string
+  showChips?: boolean
+  chips?: { staplePercent: number; decks: number; top8: number }
 }
 
 /** Colors → hex used for borders/gradients */
@@ -43,9 +48,26 @@ function parseJsonMaybe<T = any> (value: any): T | undefined {
 }
 
 function getFaces (card: DbUICard): any[] {
+  // Prefer explicit faces if present
   if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
   const parsed = parseJsonMaybe<any[]>(card?.card_faces)
-  return Array.isArray(parsed) ? parsed : []
+  if (Array.isArray(parsed)) return parsed
+
+  // Fallback: infer dual faces from flattened image_uris or split name or layout
+  const uris = parseJsonMaybe<any>(card?.image_uris)
+  const hasF0 = !!pickFlattenedFaceUri(uris, 0)
+  const hasF1 = !!pickFlattenedFaceUri(uris, 1)
+  const nameParts = typeof card?.name === 'string' ? card.name.split(' // ') : []
+  const looksDual = /transform|modal_dfc|double_faced|split|adventure/i.test(
+    (card as any)?.layout || ''
+  )
+  if (hasF1 || (hasF0 && looksDual) || nameParts.length > 1) {
+    return [
+      { name: nameParts[0] || card?.name },
+      { name: nameParts[1] || '' }
+    ]
+  }
+  return []
 }
 
 /** First available art image for a given face or whole card */
@@ -116,15 +138,22 @@ function cardBorderClass (card: any, colors: string[]): string {
   return 'border-transparent'
 }
 
-/** Multicolor gradient (mana colors only; no gold blending) */
+/**
+ * Multicolor gradient (mana colors only; no gold blending)
+ * Use layered backgrounds instead of border-image so rounded corners render
+ * consistently across browsers and wrappers. The outer element already has
+ * `border-4` and a transparent border when multicolor.
+ */
 function cardBorderStyle (card: any, colors: string[]): React.CSSProperties {
   if (colors.length <= 1) return {}
   const stops = colors.map(c => HEX[c] ?? COLORLESS)
   const step = 100 / (stops.length - 1)
   const parts = stops.map((s, i) => `${s} ${Math.round(i * step)}%`).join(', ')
+  // Tailwind neutral-800 is rgb(38,38,38). Keep in sync with class.
+  const fill = 'rgb(38 38 38)' // bg-neutral-800
   return {
-    borderImage: `linear-gradient(90deg, ${parts}) 1`,
-    borderStyle: 'solid'
+    background: `linear-gradient(${fill}, ${fill}) padding-box, linear-gradient(90deg, ${parts}) border-box`,
+    backgroundClip: 'padding-box, border-box'
   }
 }
 
@@ -176,7 +205,9 @@ function InlineMana ({ text }: { text: string }) {
 
 export default function MtgCard ({
   card,
-  index
+  index,
+  showChips,
+  chips
 }: MtgCardProps): React.JSX.Element {
   const hasFaces = getFaces(card).length > 1
   const [faceIdx, setFaceIdx] = useState<number>(0)
@@ -192,6 +223,45 @@ export default function MtgCard ({
   const toughness = fromFace<string>(card, faceIdx, 'toughness', '')
   const loyalty = fromFace<string>(card, faceIdx, 'loyalty', '')
   const artSrc = getArt(card, faceIdx)
+  const setName: string = card?.set_name || ''
+
+  // Resolve set info (code + set icon) from local list
+  const setInfo = useMemo(() => {
+    if (!setName) return undefined
+    try {
+      const list = (allSets?.data ?? []) as any[]
+      const found = list.find((s: any) =>
+        typeof s?.name === 'string' && s.name.toLowerCase() === setName.toLowerCase()
+      )
+      if (found) return {
+        name: String(found.name || setName),
+        code: String(found.code || '').toUpperCase(),
+        icon: String(found.icon_svg_uri || ''),
+        released_at: String(found.released_at || '')
+      }
+    } catch {}
+    return undefined
+  }, [setName])
+
+  // CardStats values from DB fields (fallbacks handled)
+  const toTen = (n: any) => {
+    const v = Number(n)
+    if (!isFinite(v) || isNaN(v)) return 0
+    if (v <= 10) return Math.max(0, Math.min(10, v))
+    if (v <= 100) return Math.max(0, Math.min(10, v / 10))
+    return 10
+  }
+  const priceToTen = (p: any) => {
+    const v = Number(p)
+    if (!isFinite(v) || v <= 0) return 0
+    const denom = Math.log(100 + 1)
+    return Math.max(0, Math.min(10, (Math.log(v + 1) / denom) * 10))
+  }
+  const statsPower = toTen((card as any).card_power)
+  const statsPopularity = toTen((card as any).popularity)
+  const statsSalt = toTen((card as any).salt)
+  const statsDifficulty = toTen((card as any).versatility)
+  const statsCost = priceToTen((card as any).price)
 
   const isLegendary = /\bLegendary\b/i.test(typeLine || '')
   const colors = useMemo(() => identityColors(card), [card])
@@ -206,7 +276,7 @@ export default function MtgCard ({
   return (
     <div
       key={index}
-      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-hidden ${cardBorderClass(
+      className={`relative aspect-[63/88] w-full max-w-sm mx-auto shadow-2xl border-4 bg-neutral-800 overflow-visible rounded-[1rem] ${cardBorderClass(
         card,
         colors
       )}`}
@@ -219,7 +289,7 @@ export default function MtgCard ({
       {/* Inner frame as a grid: [topbar, ART (flex), type, rules, footer] */}
       <div
         className='
-          absolute inset-0 rounded-[1rem] overflow-hidden
+          absolute inset-0 rounded-[1rem] overflow-visible
           grid h-full
           grid-rows-[auto_minmax(4.5rem,1fr)_auto_auto_auto]
           sm:grid-rows-[auto_minmax(6rem,1fr)_auto_auto_auto]
@@ -229,7 +299,7 @@ export default function MtgCard ({
         {/* Top bar */}
         <div className='flex items-start justify-between gap-2 px-3 pt-2 pb-1'>
           <h3
-            className={`font-serif font-bold leading-tight truncate text-[clamp(0.95rem,2.6vw,1.125rem)] ${titleClass}`}
+            className={`font-serif font-bold leading-tight truncate text-[clamp(0.85rem,2.2vw,1rem)] ${titleClass}`}
           >
             {name}
           </h3>
@@ -241,14 +311,14 @@ export default function MtgCard ({
         </div>
 
         {/* Art window (flex height) */}
-        <div className='px-3 min-h-0'>
+        <div className='px-3 min-h-0 relative'>
           <div className='relative w-full h-full min-h-[3.75rem] sm:min-h-[5rem] rounded-md overflow-hidden border border-neutral-700/70 bg-neutral-100'>
             <div className='absolute inset-0'>
               {artSrc ? (
                 <img
                   src={artSrc}
                   alt={name}
-                  className='w-full h-full object-cover'
+                  className='w-full h-full object-cover object-left-top'
                   loading='lazy'
                   decoding='async'
                 />
@@ -260,15 +330,15 @@ export default function MtgCard ({
             </div>
 
             {/* Stats overlay */}
-            <div className='absolute top-2 left-2 bg-black/50 rounded-4xl p-1 origin-top-left scale-[.72] sm:scale-90 md:scale-100'>
-              <CardStats
+            <div className='absolute top-1 left-1 origin-top-left scale-[.72] sm:scale-90 md:scale-100'>
+              <PolygonStats
                 size={88}
                 values={{
-                  power: 7,
-                  cost: 6,
-                  popularity: 6,
-                  difficulty: 8,
-                  salt: 5
+                  power: statsPower,
+                  cost: statsCost,
+                  popularity: statsPopularity,
+                  difficulty: statsDifficulty,
+                  salt: statsSalt
                 }}
                 max={10}
                 rings={4}
@@ -287,21 +357,61 @@ export default function MtgCard ({
               </div>
             )}
           </div>
+          {/* Optional vertical stats chips on right side (outside art overflow clip) */}
+          {showChips && chips ? (
+            <div className='absolute right-1 top-1 sm:top-2 md:top-2 z-[2] pointer-events-none'>
+              <StatsChips direction='vertical' className='pointer-events-auto items-end'
+                staplePercent={chips.staplePercent}
+                decks={chips.decks}
+                top8={chips.top8}
+              />
+            </div>
+          ) : null}
         </div>
 
-        {/* Type line */}
+        {/* Type line + Set (icon at right with tooltip) */}
         <div className='mt-1 px-3'>
-          <div className='rounded-sm border border-neutral-700/70 bg-neutral-900/70 px-2 py-1'>
-            <p className='text-[12px] sm:text-[13px] text-neutral-200 tracking-wide'>
+          <div className='rounded-sm border border-neutral-700/70 bg-neutral-900/70 px-2 py-1 flex items-center justify-between gap-2'>
+            <p className='text-[12px] sm:text-[13px] text-neutral-200 tracking-wide truncate'>
               {typeLine}
             </p>
+            {setInfo?.icon ? (
+              <Tooltip
+                placement='top-right'
+                content={(
+                  <div>
+                    <div className='text-[12px] font-semibold leading-snug'>{setInfo.name}</div>
+                    <div className='mt-0.5 text-[11px] text-neutral-300 leading-snug'>
+                      {setInfo.released_at ? new Date(setInfo.released_at).toLocaleDateString() : ''}
+                      {setInfo.code ? (
+                        <span className='ml-2 inline-flex items-center rounded px-1.5 py-[1px] text-[10px] font-bold tracking-wide uppercase bg-neutral-800 text-neutral-200 ring-1 ring-neutral-700'>
+                          {setInfo.code}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
+              >
+                <img
+                  src={setInfo.icon}
+                  alt=""
+                  aria-hidden='true'
+                  width={16}
+                  height={16}
+                  loading='lazy'
+                  decoding='async'
+                  className='opacity-90'
+                  style={{ filter: 'invert(1) brightness(1.15) contrast(1.05)' }}
+                />
+              </Tooltip>
+            ) : null}
           </div>
         </div>
 
         {/* Rules + Flavor */}
         <div className='relative mt-2 px-3 pb-2'>
           <div className='relative rounded-md border border-neutral-700/70 bg-[#f7f2e7] text-neutral-900 px-3 py-2 min-h-[84px] sm:min-h-[100px]'>
-            <div className='space-y-1.5 text-[12px] sm:text-[13px] leading-5'>
+            <div className='space-y-1.5 text-[12px] sm:text-[13px] leading-5 max-h-[7.5rem] sm:max-h-[9rem] md:max-h-[10.5rem] overflow-y-auto scroll-thin pr-1'>
               {oracleLines.length ? (
                 oracleLines.map((line, i) => (
                   <p key={i}>
@@ -323,7 +433,7 @@ export default function MtgCard ({
             ) : null}
 
             {(hasPT || hasLoyalty) && (
-              <div className='absolute -bottom-2 -right-2'>
+              <div className='absolute -bottom-3 -right-2'>
                 <div className='rounded-md bg-neutral-900 text-neutral-100 border border-neutral-700 px-2 py-1 shadow'>
                   <span className='text-xs sm:text-sm font-semibold tracking-wide'>
                     {hasPT ? `${power}/${toughness}` : `Loyalty ${loyalty}`}
@@ -334,15 +444,11 @@ export default function MtgCard ({
           </div>
         </div>
 
-        {/* Footer */}
-        {(artist || card?.set_name) && (
+        {/* Footer (artist only; set moved to type line) */}
+        {artist && (
           <div className='px-3 pb-2 pt-1 flex items-center justify-between text-[11px] text-neutral-500'>
-            <div className='truncate'>
-              {artist ? <span>Illus. {artist}</span> : <span>&nbsp;</span>}
-            </div>
-            <div className='truncate'>
-              {card?.set_name ? <span>{card.set_name}</span> : null}
-            </div>
+            <div className='truncate'>Illus. {artist}</div>
+            <div className='truncate'><span>&nbsp;</span></div>
           </div>
         )}
       </div>

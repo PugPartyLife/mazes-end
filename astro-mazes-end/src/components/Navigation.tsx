@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import Logo from './Logo'
 
 interface NavItem {
   name: string;
@@ -21,19 +22,28 @@ export default function Navigation(): React.JSX.Element {
   }, []);
 
   const navItems: NavItem[] = [
-    { name: 'Home', href: '/' },
     { name: 'Commanders', href: '/commanders' },
-    { name: 'Cards and Combos', href: '/cards' },
     { name: 'Decks', href: '/decks' },
+    { name: 'Cards and Combos', href: '/cards' },
+    { name: 'Tournaments', href: '/tournaments' },
   ];
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg' : 'bg-transparent'
+      scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-white/10' : 'bg-transparent border-b border-transparent'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Changed to justify-center to center the navigation */}
-        <div className="flex justify-center items-center h-16">
+        {/* Keep items centered; add brand at left for identity */}
+        <div className="flex justify-center items-center h-16 relative">
+          {/* Brand */}
+          <a
+            href="/"
+            className={`hidden md:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide text-me-yellow ${scrolled ? 'opacity-100 drop-shadow-[0_0_6px_rgba(218,162,28,0.35)]' : 'opacity-90'}`}
+            aria-label="The Maze's End Home"
+          >
+            <Logo size={22} />
+            The Maze's End
+          </a>
           {/* Desktop Navigation - removed ml-10 to center properly */}
           <div className="hidden md:block">
             <div className="flex items-center space-x-8">
@@ -47,8 +57,8 @@ export default function Navigation(): React.JSX.Element {
                     item.disabled 
                       ? 'text-gray-400 cursor-not-allowed' 
                       : scrolled 
-                        ? 'text-gray-100 hover:text-gray-300' 
-                        : 'text-white hover:text-gray-300'
+                        ? 'text-gray-200 hover:text-gray-300' 
+                        : 'text-gray-100 hover:text-gray-300'
                   }`}
                   onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 >

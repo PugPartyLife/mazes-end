@@ -2,24 +2,48 @@
 export const prerender = false;
 
 import Layout from "../layouts/Layout.astro";
-import Navigation from "../components/Navigation.jsx";
-import Footer from "../components/Footer.jsx";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
 import DeckBox from "../components/DeckBox";
+import PageHeader from "../components/PageHeader";
 import { loadTopDeckBoxes } from "../server/decks";
 
 const decks = await loadTopDeckBoxes(15);
 ---
 
 <Layout title="The Maze's End - cEDH Hub">
-  <div class="min-h-screen bg-gray-900 p-6 sm:p-10 lg:p-16">
-    <Navigation client:load />
+  <div class="min-h-screen bg-gray-900 bg-vignette p-6 sm:p-10 lg:p-16">
+    <Navigation client:idle />
 
     <div class="mx-auto max-w-7xl">
-      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
-        {decks.map((d) => <DeckBox client:visible {...d} />)}
+      <PageHeader client:idle title="Top Decks" subtitle="Recent Events" placeholder="Search decks..." />
+      <div id="deck-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+        {decks.map((d) => {
+          const fallbackColors = Array.from(new Set([
+            ...((d.commanders?.[0]?.color_identity || d.commanders?.[0]?.colors) ?? []),
+            ...((d.commanders?.[1]?.color_identity || d.commanders?.[1]?.colors) ?? [])
+          ].filter((c) => typeof c === 'string' && 'WUBRG'.includes(c as string)))) as string[];
+          const colorAttr = (d.colors && d.colors.length ? d.colors : fallbackColors).join("");
+          return (
+            <div class="deck-item" data-name={d.name} data-player={d.player} data-tournament={d.tournamentName} data-colors={colorAttr}>
+              <DeckBox client:visible {...d} />
+            </div>
+          );
+        })}
       </div>
     </div>
 
-    <Footer client:load />
+    <script type="module">
+      import { setupManaFilter } from '/src/scripts/manaFilter.ts';
+      setupManaFilter({
+        gridSelector: '#deck-grid',
+        itemSelector: '.deck-item',
+        textAttrs: ['data-name','data-player','data-tournament'],
+        colorsAttr: 'data-colors',
+        colorMode: 'and'
+      });
+    </script>
+
+    <Footer />
   </div>
 </Layout>
