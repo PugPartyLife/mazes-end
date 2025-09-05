@@ -28,6 +28,14 @@ export default function Navigation(): React.JSX.Element {
     { name: 'Tournaments', href: '/tournaments' },
   ];
 
+    const navItemsMobile: NavItem[] = [
+    { name: 'Home', href: '/' },
+    { name: 'Commanders', href: '/commanders' },
+    { name: 'Decks', href: '/decks' },
+    { name: 'Cards and Combos', href: '/cards' },
+    { name: 'Tournaments', href: '/tournaments' },
+  ];
+
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
       scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-white/10' : 'bg-transparent border-b border-transparent'
@@ -84,7 +92,7 @@ export default function Navigation(): React.JSX.Element {
       {isOpen && (
         <div className="lg:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 shadow-lg">
-            {navItems.map((item: NavItem) => (
+            {navItemsMobile.map((item: NavItem) => (
               <a
                 key={item.name}
                 href={item.disabled ? '#' : item.href}

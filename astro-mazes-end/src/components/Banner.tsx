@@ -130,8 +130,8 @@ export default function Banner() {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
             <CtaButton buttonText="Get Started!" buttonHref="/tour" arrowRight={true} />
-            <CtaButton buttonText="Learn cEDH" buttonHref="/learn-the-basics" arrowRight={true} />
-            <CtaButton buttonText="Cards and Combos" buttonHref="/cards-combos" arrowRight={true} />
+            <CtaButton buttonText="Learn EDH" buttonHref="https://mtgcommander.net/index.php/rules/" arrowRight={true} />
+            <CtaButton buttonText="Stats and Trends" buttonHref="#" arrowRight={true} />
           </div>
 
           {/* Stats */}
