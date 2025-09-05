@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import CtaButton from '../components/CtaButton.tsx';
 
 interface Stat {
@@ -7,20 +7,93 @@ interface Stat {
   label: string;
 }
 
+interface DatabaseSummary {
+  totalTournaments: number;
+  totalPlayers: number;
+  totalDecks: number;
+  totalCards: number;
+  totalDeckCards: number;
+  latestTournament: string;
+  databasePath: string;
+}
+
 const STEPS = ['1. Learn', '2. Study', '3. Practice', '4. Win'] as const;
-const STATS: Stat[] = [
-  { number: '1091', label: 'Commanders' },
-  { number: '9786', label: 'Unique Cards' },
-  { number: '11135', label: 'Decks' },
-  { number: '162', label: 'Tournaments' },
-];
+
+// GraphQL query for database summary
+const SUMMARY_QUERY = `
+  query GetDatabaseSummary {
+    summary {
+      totalTournaments
+      totalPlayers
+      totalDecks
+      totalCards
+      totalDeckCards
+      latestTournament
+      databasePath
+    }
+  }
+`;
 
 export default function Banner() {
   const [step, setStep] = useState<number>(0);
+  const [stats, setStats] = useState<Stat[]>([
+    { number: '...', label: 'Tournaments' },
+    { number: '...', label: 'Players' },
+    { number: '...', label: 'Decks' },
+    { number: '...', label: 'Cards' },
+  ]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const id = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 1600);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const fetchSummary = async () => {
+      try {
+        const response = await fetch('/api/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: SUMMARY_QUERY,
+          }),
+        });
+
+        const { data } = await response.json();
+        
+        if (data?.summary) {
+          const summary: DatabaseSummary = data.summary;
+          
+          // Format numbers with commas for display
+          const formatNumber = (num: number): string => {
+            return num.toLocaleString();
+          };
+
+          setStats([
+            { number: formatNumber(summary.totalTournaments), label: 'Tournaments' },
+            { number: formatNumber(summary.totalPlayers), label: 'Players' },
+            { number: formatNumber(summary.totalDecks), label: 'Decks' },
+            { number: formatNumber(summary.totalCards), label: 'Cards' },
+          ]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch database summary:', error);
+        // Keep loading state or show fallback stats
+        setStats([
+          { number: 'N/A', label: 'Tournaments' },
+          { number: 'N/A', label: 'Players' },
+          { number: 'N/A', label: 'Decks' },
+          { number: 'N/A', label: 'Cards' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSummary();
   }, []);
 
   return (
@@ -63,9 +136,11 @@ export default function Banner() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-8 max-w-2xl mx-auto">
-            {STATS.map((stat: Stat, index: number) => (
+            {stats.map((stat: Stat, index: number) => (
               <div key={index} className="text-center">
-                <div className="text-2xl md:text-3xl font-bold text-white">{stat.number}</div>
+                <div className={`text-2xl md:text-3xl font-bold text-white transition-opacity duration-300 ${loading ? 'opacity-50' : 'opacity-100'}`}>
+                  {stat.number}
+                </div>
                 <div className="text-gray-200 text-xs md:text-sm">{stat.label}</div>
               </div>
             ))}
