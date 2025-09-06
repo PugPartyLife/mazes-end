@@ -14,7 +14,9 @@ import type {
   DeckCard,
   PlayerHistory,
   DatabaseSummary,
-  ParsedImageUris
+  ParsedImageUris,
+  CardUsageData,
+  DeckReference
 } from '../../types'
 
 export const builder = new SchemaBuilder<{
@@ -47,6 +49,8 @@ export const builder = new SchemaBuilder<{
     ComboConnection: any
     CardVersatility: any
     ColorCount: any
+    CardUsage: CardUsageData
+    DeckInfo: DeckReference
   }
 }>({
   plugins: [DataloaderPlugin],
@@ -659,6 +663,37 @@ builder.objectType('CardVersatility', {
   })
 })
 
+builder.objectType('DeckInfo', {
+  fields: (t) => ({
+    deckId: t.exposeString('deckId'),
+    deckName: t.exposeString('deckName'),
+    commanderName: t.exposeString('commanderName')
+  })
+})
+
+builder.objectType('CardUsage', {
+  fields: (t) => ({
+    cardName: t.exposeString('cardName'),
+    timesPlayed: t.exposeInt('timesPlayed'),
+    decks: t.field({
+      type: ['DeckInfo'],
+      resolve: (parent) => parent.decks || []
+    }),
+    // Link to full card details
+    card: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.cardName]
+        )
+        return results[0] || null
+      }
+    })
+  })
+})
+
 builder.objectType('ColorCount', {
   fields: (t) => ({
     color: t.exposeString('color'),
@@ -682,6 +717,73 @@ builder.queryType({
         return queryDatabase<any>(sql, params)
       }
     }),
+    // Add this query to your builder.queryType fields
+    cardUsage: t.field({
+      type: ['CardUsage'],
+      args: {
+        days: t.arg.int({ defaultValue: 30 }),
+      },
+      resolve: async (_, { days }) => {
+        const defaultDays = days ?? 30
+        const startDate = defaultDays === -1 
+          ? '2025-08-01' 
+          : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+        // First get the card usage counts
+        const cardUsageResults = await queryDatabase<any>(`
+          WITH filtered_decks AS (
+            SELECT d.deck_id, d.commander_1, d.tournament_id, t.tournament_name
+            FROM decks d
+            JOIN tournaments t ON d.tournament_id = t.tournament_id
+            WHERE t.start_date >= ?
+              AND d.has_decklist = 1
+          ),
+          card_counts AS (
+            SELECT 
+              dc.card_name,
+              COUNT(*) as times_played,
+              COUNT(DISTINCT dc.deck_id) as unique_decks
+            FROM deck_cards dc
+            JOIN filtered_decks fd ON dc.deck_id = fd.deck_id
+            WHERE dc.deck_section != 'commander'
+            GROUP BY dc.card_name
+          )
+          SELECT * FROM card_counts
+          ORDER BY times_played DESC
+          LIMIT 1000
+        `, [startDate]);
+
+        // For each card, get the decks it appears in
+        const cardUsageWithDecks = await Promise.all(
+          cardUsageResults.map(async (cardUsage: any) => {
+            const deckResults = await queryDatabase<any>(`
+              SELECT DISTINCT
+                d.deck_id as deckId,
+                COALESCE(t.tournament_name, 'Unknown Tournament') || ' - ' || d.player_name as deckName,
+                COALESCE(d.commander_1, 'Unknown Commander') as commanderName
+              FROM deck_cards dc
+              JOIN decks d ON dc.deck_id = d.deck_id
+              JOIN tournaments t ON d.tournament_id = t.tournament_id
+              WHERE dc.card_name = ?
+                AND t.start_date >= ?
+                AND d.has_decklist = 1
+                AND dc.deck_section != 'commander'
+              ORDER BY t.start_date DESC
+              LIMIT 50
+            `, [cardUsage.card_name, startDate]);
+
+            return {
+              cardName: cardUsage.card_name,
+              timesPlayed: cardUsage.times_played,
+              decks: deckResults
+            };
+          })
+        );
+
+        return cardUsageWithDecks;
+      },
+    }),
+
     // Top commanders using the view
     topCommanders: t.field({
       type: ['TopCommander'],

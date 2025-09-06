@@ -287,7 +287,56 @@ export interface CardInclusionStats {
   performanceImpact: number // positive = improves win rate, negative = reduces
 }
 
-// Export a type union of all database types for generic functions
+export interface CardUsageData {
+  cardName: string
+  timesPlayed: number
+  decks: DeckReference[]
+}
+
+// Simplified deck reference for card usage
+export interface DeckReference {
+  deckId: string
+  deckName: string
+  commanderName: string
+}
+
+// Query result type for card usage aggregation
+export interface CardUsageQueryResult {
+  card_name: string
+  times_played: number
+  unique_decks: number
+}
+
+// Query result type for deck details with card
+export interface DeckWithCardResult {
+  deckId: string
+  deckName: string
+  commanderName: string
+}
+
+// Parameters for card usage query
+export interface CardUsageParams {
+  days?: number
+  limit?: number
+}
+
+// Aggregated card usage with JSON decks (for optimized query)
+export interface CardUsageWithJsonDecks {
+  cardName: string
+  timesPlayed: number
+  decks: string // JSON string that needs to be parsed
+}
+
+// Card usage bin for histogram
+export interface CardUsageBin {
+  range: string
+  minValue: number
+  maxValue: number
+  count: number
+  cards: CardUsageData[]
+}
+
+// Update the AnyDatabaseType union to include new types
 export type AnyDatabaseType = 
   | CardType 
   | Tournament 
@@ -300,3 +349,5 @@ export type AnyDatabaseType =
   | TopCommander
   | TopCardForCommander
   | CommanderRecommendation
+  | CardUsageData
+  | DeckReference
