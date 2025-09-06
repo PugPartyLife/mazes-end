@@ -2,7 +2,7 @@ import SchemaBuilder from '@pothos/core'
 import DataloaderPlugin from '@pothos/plugin-dataloader'
 import { queryDatabase, queryDatabaseSingle, queries, parseColors, parseImageUris, parseArchetypeTags } from '../db/sqlite'
 import { getComboGraphClient } from '../graph/comboGraphClient'
-import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult } from '../graph/comboGraphClient'
+import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult, TournamentResult } from '../graph/comboGraphClient'
 import type { 
   TopCommander, 
   TopCardForCommander, 
@@ -24,6 +24,7 @@ export const builder = new SchemaBuilder<{
     TopCardForCommander: TopCardForCommander
     CommanderRecommendation: CommanderRecommendation
     Tournament: Tournament
+    TournamentResult: TournamentResult
     Player: Player
     Deck: Deck
     Card: Card
@@ -202,6 +203,17 @@ builder.objectType('Tournament', {
         )
       }
     }),
+  }),
+})
+
+builder.objectType('TournamentResult', {
+  fields: (t) => ({
+    date: t.exposeString('date'),
+    tournamentName: t.exposeString('tournament_name'),
+    tournamentId: t.exposeString('tournament_id'),
+    wins: t.exposeInt('wins'),
+    draws: t.exposeInt('draws'),
+    losses: t.exposeInt('losses'),
   }),
 })
 
@@ -772,6 +784,37 @@ builder.queryType({
           'SELECT * FROM tournaments WHERE tournament_id = ?',
           [id]
         )
+      },
+    }),
+
+    tournamentResults: t.field({
+      type: ['TournamentResult'],
+      args: {
+        days: t.arg.int({ defaultValue: 30 }),
+      },
+      resolve: async (_, { days }) => {
+        const defaultDays = days ?? 30
+        const startDate = defaultDays === -1 
+          ? '2025-08-01' 
+          : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Using your existing queryDatabase function
+        return queryDatabase<any>(
+          `SELECT 
+            DATE(t.start_date) as date,
+            t.tournament_name,
+            t.tournament_id,
+            SUM(d.wins) as wins,
+            SUM(d.draws) as draws,
+            SUM(d.losses) as losses
+          FROM tournaments t
+          JOIN decks d ON t.tournament_id = d.tournament_id
+          WHERE t.start_date >= ?
+          GROUP BY DATE(t.start_date), t.tournament_name, t.tournament_id
+          ORDER BY date DESC
+          LIMIT 50`,
+          [startDate]
+        );
       },
     }),
 

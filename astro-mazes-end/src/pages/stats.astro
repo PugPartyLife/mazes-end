@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation";
+import StatsPanel from "../components/StatsPanel";
+import Footer from "../components/Footer";
+---
+
+<Layout title="Stats & Trends - The Maze's End">
+  <div class="min-h-screen bg-gray-900">
+    <Navigation client:idle />
+    <StatsPanel client:load />
+    <Footer />
+  </div>
+</Layout>

@@ -298,14 +298,21 @@ class DatabaseLoader:
         ts = data.get('startDate') or data.get('dateCreated')
         if ts:
             try:
-                # Some exports store seconds, others ms. Normalize.
                 ts = int(ts)
                 if ts > 10_000_000_000:  # looks like ms epoch
                     ts = ts / 1000.0
                 start_date = datetime.fromtimestamp(ts)
-            except (ValueError, TypeError):
+                print(f"  Parsed date: {start_date}")
+            except (ValueError, TypeError) as e:
+                print(f"  ERROR parsing date: {e}")
                 pass
-        
+        else:
+            print("  No timestamp found!")
+
+        event_data = data.get('eventData', {})
+        city = event_data.get('city')
+        state = event_data.get('state')
+        venue = event_data.get('location')
         return Tournament(
             tournament_id=data.get('TID', ''),
             tournament_name=data.get('tournamentName'),
@@ -315,9 +322,9 @@ class DatabaseLoader:
             swiss_rounds=data.get('swissNum'),
             top_cut=data.get('topCut'),
             total_players=len(data.get('standings', [])),
-            location_city=data.get('locationCity'),
-            location_state=data.get('locationState'), 
-            location_venue=data.get('locationVenue'),
+            location_city=city,
+            location_state=state,
+            location_venue=venue,
             has_decklists=any(p.get('decklist') for p in data.get('standings', []))
         )
     

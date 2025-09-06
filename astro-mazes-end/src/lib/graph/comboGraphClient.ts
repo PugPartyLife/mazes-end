@@ -80,6 +80,15 @@ export interface GraphStatistics {
   largest_connected_component: number | string
 }
 
+export interface TournamentResult {
+  date: string;
+  tournament_name: string;
+  tournament_id: string;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
 class ComboGraphClient extends EventEmitter {
   private baseUrl: string
   private isReady: boolean = false
