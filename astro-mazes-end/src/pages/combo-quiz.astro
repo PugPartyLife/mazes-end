@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Navigation from "../components/Navigation";
+import Footer from "../components/Footer";
+import ComboQuizComponent from "../components/ComboQuiz";
+---
+
+<Layout title="Combo Quiz - The Maze's End">
+  <div class="min-h-screen bg-gray-900 bg-vignette">
+    <Navigation client:idle />
+    <ComboQuizComponent client:load />
+    <Footer />
+  </div>
+</Layout>

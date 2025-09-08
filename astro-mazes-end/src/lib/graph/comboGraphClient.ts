@@ -51,6 +51,14 @@ export interface ComboSearchResult {
   }>
 }
 
+export interface RandomCombosResult {
+  max_cards: number
+  requested_count: number
+  returned_count: number
+  total_eligible: number
+  combos: ComboData[]
+}
+
 export interface CardImportance {
   combos_count: number
   degree_centrality: number
@@ -194,6 +202,14 @@ class ComboGraphClient extends EventEmitter {
 
   async getGraphStatistics(): Promise<GraphStatistics> {
     return this.request<GraphStatistics>('/api/combos/statistics')
+  }
+
+  async getRandomCombos(maxCards: number = 2, count: number = 10): Promise<RandomCombosResult> {
+    const response = await fetch(`${this.baseUrl}/api/combos/random?max_cards=${maxCards}&count=${count}`)
+    if (!response.ok) {
+      throw new Error(`Failed to fetch random combos: ${response.statusText}`)
+    }
+    return response.json()
   }
 
   async getCombosByColorIdentity(colorIdentity: string): Promise<any> {

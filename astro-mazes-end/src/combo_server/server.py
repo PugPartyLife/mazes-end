@@ -8,6 +8,7 @@ import asyncio
 import json
 import logging
 import argparse
+import random
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -32,6 +33,80 @@ class ComboGraphHandler:
     
     def __init__(self, analyzer: ComboGraphAnalyzer):
         self.analyzer = analyzer
+
+    async def handle_random_combos(self, request: web.Request) -> web.Response:
+        """Get random combos with up to N required cards."""
+        try:
+            # Get parameters from query string
+            max_cards = int(request.query.get('max_cards', 5))
+            count = int(request.query.get('count', 10))
+            
+            # Validate parameters
+            if max_cards < 1:
+                return web.json_response(
+                    {"error": "max_cards must be at least 1"}, 
+                    status=400
+                )
+            if count < 1 or count > 100:
+                return web.json_response(
+                    {"error": "count must be between 1 and 100"}, 
+                    status=400
+                )
+            
+            # Filter combos by card count
+            eligible_combos = [
+                (combo_id, combo_data) 
+                for combo_id, combo_data in self.analyzer.combo_data.items()
+                if len(combo_data.get('card_names', [])) <= max_cards
+            ]
+            
+            if not eligible_combos:
+                return web.json_response({
+                    "error": f"No combos found with {max_cards} or fewer cards"
+                }, status=404)
+            
+            # Sample random combos (or all if fewer than requested)
+            sample_size = min(count, len(eligible_combos))
+            selected_combos = random.sample(eligible_combos, sample_size)
+            
+            # Format response
+            result = {
+                'max_cards': max_cards,
+                'requested_count': count,
+                'returned_count': len(selected_combos),
+                'total_eligible': len(eligible_combos),
+                'combos': []
+            }
+            
+            for combo_id, combo_data in selected_combos:
+                # Start with a complete copy of the combo data
+                combo_info = combo_data.copy()
+                combo_info['id'] = combo_id
+                
+                # Add computed fields
+                combo_info['card_count'] = len(combo_data.get('card_names', []))
+                
+                # Add card details with combo counts
+                combo_info['cards'] = []
+                for card_name in combo_data.get('card_names', []):
+                    card_info = self.analyzer.card_data.get(card_name, {})
+                    combo_info['cards'].append({
+                        'name': card_name,
+                        'combos_count': card_info.get('combos_count', 0)
+                    })
+                
+                result['combos'].append(combo_info)
+            
+            # Sort by card count for easier reading
+            result['combos'].sort(key=lambda x: x['card_count'])
+            
+            return web.json_response(result)
+            
+        except ValueError as e:
+            return web.json_response(
+                {"error": f"Invalid parameter value: {str(e)}"}, 
+                status=400
+            )
         
     async def handle_combo_by_id(self, request: web.Request) -> web.Response:
         combo_id = request.match_info.get('combo_id')
@@ -243,6 +318,7 @@ def create_app(data_file: str) -> web.Application:
         web.get('/api/combo/{combo_id}', handler.handle_combo_by_id),
         web.get('/api/combo/{combo_id}/distance1', handler.handle_distance_1_combos),
         web.get('/api/combos/card/{card_name}', handler.handle_combos_by_card),
+        web.get('/api/combos/random', handler.handle_random_combos),
         web.get('/api/combos/packages', handler.handle_combo_packages),
         web.get('/api/combos/statistics', handler.handle_graph_statistics),
         web.post('/api/combos/package', handler.handle_combo_package_by_id),

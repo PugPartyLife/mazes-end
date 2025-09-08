@@ -2,7 +2,7 @@ import SchemaBuilder from '@pothos/core'
 import DataloaderPlugin from '@pothos/plugin-dataloader'
 import { queryDatabase, queryDatabaseSingle, queries, parseColors, parseImageUris, parseArchetypeTags } from '../db/sqlite'
 import { getComboGraphClient } from '../graph/comboGraphClient'
-import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult, TournamentResult } from '../graph/comboGraphClient'
+import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult, TournamentResult, RandomCombosResult } from '../graph/comboGraphClient'
 import type { 
   TopCommander, 
   TopCardForCommander, 
@@ -46,6 +46,7 @@ export const builder = new SchemaBuilder<{
     ComboGraphStats: GraphStatistics
     Distance1Combo: any
     ComboSummary: any
+    RandomCombosResult: RandomCombosResult
     ComboConnection: any
     CardVersatility: any
     ColorCount: any
@@ -701,6 +702,19 @@ builder.objectType('ColorCount', {
   })
 })
 
+builder.objectType('RandomCombosResult', {
+  fields: (t) => ({
+    maxCards: t.exposeInt('max_cards'),
+    requestedCount: t.exposeInt('requested_count'),
+    returnedCount: t.exposeInt('returned_count'),
+    totalEligible: t.exposeInt('total_eligible'),
+    combos: t.field({
+      type: ['Combo'],
+      resolve: (parent) => parent.combos || []
+    })
+  })
+})
+
 
 builder.queryType({
   fields: (t) => ({
@@ -945,6 +959,24 @@ builder.queryType({
         const { sql, params } = queries.playerHistory(playerId)
         return queryDatabase<PlayerHistory>(sql, params)
       },
+    }),
+
+    randomCombos: t.field({
+      type: 'RandomCombosResult',
+      args: {
+        maxCards: t.arg.int({ 
+          defaultValue: 5,
+          description: 'Maximum number of cards allowed in combos' 
+        }),
+        count: t.arg.int({ 
+          defaultValue: 10,
+          description: 'Number of random combos to return (max 100)' 
+        })
+      },
+      resolve: async (_, { maxCards, count }) => {
+        const client = getComboGraphClient()
+        return client.getRandomCombos(maxCards ?? 5, count ?? 10)
+      }
     }),
 
     // Database summary statistics

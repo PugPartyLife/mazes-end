@@ -13,6 +13,7 @@ import {
   Cell
 } from 'recharts';
 import { BarChart3, Calendar, ChevronDown, TrendingUp, TrendingDown, Layers, X } from 'lucide-react';
+import type Index from '../pages/index.astro';
 
 // Types for card data
 interface CardUsageData {
@@ -57,6 +58,9 @@ const CardListModal = ({
   onClose: () => void;
 }) => {
   if (!bin) return null;
+  console.log(bin);
+  bin.cards.map((card, index) => console.log(card, index));
+  bin.cards.map((card) => card.decks.map((deck) => console.log(deck.deckName)));
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -76,7 +80,7 @@ const CardListModal = ({
                 Cards Played {bin.range} Times
               </h3>
               <p className="text-sm text-gray-400 mt-1">
-                {bin.count} cards in this range
+                {bin.count} cards in this range 
               </p>
             </div>
             <button
@@ -104,6 +108,21 @@ const CardListModal = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
+                {bin.cards.map((card, index) => (
+                  <tr key={index} className="hover:bg-gray-700/50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-white">
+                      {card.cardName}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-300">
+                      {card.timesPlayed}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400">
+                      Test
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {/* <tbody className="divide-y divide-gray-700">
                 {bin.cards
                   .sort((a, b) => b.timesPlayed - a.timesPlayed)
                   .map((card, index) => (
@@ -130,7 +149,7 @@ const CardListModal = ({
                       </td>
                     </tr>
                   ))}
-              </tbody>
+              </tbody> */}
             </table>
           </div>
         </div>
@@ -580,7 +599,7 @@ export default function StatsPanel() {
   const [cardData, setCardData] = useState<CardUsageData[]>([]);
   const [histogramData, setHistogramData] = useState<CardBin[]>([]);
   const [selectedBin, setSelectedBin] = useState<CardBin | null>(null);
-  const [binCount, setBinCount] = useState(10);
+  const [binCount, setBinCount] = useState(20);
 
   // Available time ranges
   const timeRanges: TimeRange[] = [
@@ -1055,10 +1074,10 @@ export default function StatsPanel() {
                     onChange={(e) => setBinCount(Number(e.target.value))}
                     className="px-3 py-2 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 focus:border-yellow-400 focus:outline-none"
                   >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={15}>15</option>
                     <option value={20}>20</option>
+                    <option value={30}>30</option>
+                    <option value={40}>40</option>
+                    <option value={50}>50</option>
                   </select>
                 </div>
 
@@ -1107,16 +1126,24 @@ export default function StatsPanel() {
                     <p className="text-2xl font-bold text-yellow-400">{totalPlayCount}</p>
                   </div>
                   <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-400 mb-2">Top 10% Share</h3>
+                    <p className="text-2xl font-bold text-red-500">{topCardShare.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                    <h3 className="text-sm font-medium text-gray-400 mb-2">Gini Coefficient</h3>
+                    <p className="text-2xl font-bold text-cyan-500">{giniCoefficient.toFixed(3)}</p>
+                  </div>
+                 {/* <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                     <h3 className="text-sm font-medium text-gray-400 mb-2">Mean</h3>
                     <p className="text-2xl font-bold text-green-500">{mean.toFixed(1)}</p>
                   </div>
                   <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                     <h3 className="text-sm font-medium text-gray-400 mb-2">Median</h3>
                     <p className="text-2xl font-bold text-blue-500">{median.toFixed(1)}</p>
-                  </div>
+                  </div> */}
                 </div>
                 
-                {/* Second Row - Distribution Stats */}
+                {/* Second Row - Distribution Stats 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
                     <h3 className="text-sm font-medium text-gray-400 mb-2">Std Dev</h3>
@@ -1134,10 +1161,10 @@ export default function StatsPanel() {
                     <h3 className="text-sm font-medium text-gray-400 mb-2">Gini Coefficient</h3>
                     <p className="text-2xl font-bold text-cyan-500">{giniCoefficient.toFixed(3)}</p>
                   </div>
-                </div>
+                </div> */}
               </div>
 
-              {/* Distribution Note */}
+              {/* Distribution Note 
               {mean > median * 1.5 && (
                 <div className="bg-yellow-900/20 border border-yellow-600/30 rounded-lg p-4 mb-8">
                   <p className="text-yellow-400 text-sm">
@@ -1145,7 +1172,7 @@ export default function StatsPanel() {
                     The top 10% of cards account for {topCardShare.toFixed(0)}% of all usage. Switched to logarithmic scale visualization for better insight.
                   </p>
                 </div>
-              )}
+              )} */}
 
               {/* Loading indicator */}
               {loading && (
