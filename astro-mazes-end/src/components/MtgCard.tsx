@@ -329,7 +329,7 @@ export default function MtgCard ({
               )}
             </div>
 
-            {/* Stats overlay */}
+            {/* Stats overlay 
             <div className='absolute top-1 left-1 origin-top-left scale-[.72] sm:scale-90 md:scale-100'>
               <PolygonStats
                 size={88}
@@ -345,7 +345,7 @@ export default function MtgCard ({
                 padding={10}
                 showLabels={false}
               />
-            </div>
+            </div> */}
 
             {/* DFC / Transform toggle (top-right). Clicking does NOT open outer modal */}
             {hasFaces && (

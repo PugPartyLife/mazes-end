@@ -633,7 +633,7 @@ class OptimizedScryfallAPI:
     def read_card_names_from_json(self, json_file: str) -> List[str]:
         """Read card names from JSON file (supports tournament data JSON format)"""
         try:
-            with open(json_file, 'r', encoding='utf-8') as f:
+            with open(json_file, 'r', encoding='utf-16') as f:
                 data = json.load(f)
             
             # Handle different JSON formats

@@ -1,3 +1,5 @@
+import MtgCard from './MtgCard';
+import { mapGraphQLCardToUi } from '../server/cardRowToUi';
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff } from 'lucide-react';
 
@@ -52,7 +54,8 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
             manaCost
             typeLine
             oracleText
-            priceUsd
+            colorIdentity
+            colors
             imageUris {
               normal
             }
@@ -62,38 +65,6 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
     }
   }
 `;
-
-// Mana cost parser to display mana symbols
-const ManaCost = ({ cost }: { cost: string }) => {
-  const symbols = cost.match(/\{[^}]+\}/g) || [];
-  
-  return (
-    <span className="inline-flex items-center gap-1">
-      {symbols.map((symbol, index) => {
-        const cleaned = symbol.replace(/[{}]/g, '');
-        let bgColor = 'bg-gray-600';
-        let textColor = 'text-white';
-        
-        // Color mappings
-        if (cleaned === 'W') bgColor = 'bg-yellow-100 text-gray-800';
-        else if (cleaned === 'U') bgColor = 'bg-blue-500';
-        else if (cleaned === 'B') bgColor = 'bg-gray-800';
-        else if (cleaned === 'R') bgColor = 'bg-red-500';
-        else if (cleaned === 'G') bgColor = 'bg-green-500';
-        else if (cleaned.includes('/')) bgColor = 'bg-gradient-to-br from-yellow-400 to-blue-500';
-        
-        return (
-          <span
-            key={index}
-            className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${bgColor} ${textColor} shadow-sm`}
-          >
-            {cleaned}
-          </span>
-        );
-      })}
-    </span>
-  );
-};
 
 // Card display component
 const CardDisplay = ({ 
@@ -130,19 +101,17 @@ const CardDisplay = ({
         {revealed ? (
           <div className="space-y-3">
             <div>
-              <h3 className="text-lg font-semibold text-white mb-1">{card.name}</h3>
               {card.cardData && (
                 <>
-                  <div className="flex items-center gap-2 mb-2">
-                    <ManaCost cost={card.cardData.manaCost || ''} />
-                    <span className="text-sm text-gray-400">{card.cardData.manaCost}</span>
+                  <div className="flex items-center gap-2 mb-3">
+                    <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
                   </div>
-                  <p className="text-sm text-gray-400">{card.cardData.typeLine}</p>
+                  {/* <p className="text-sm text-gray-400">{card.cardData.typeLine}</p>
                   {card.cardData.oracleText && (
                     <p className="text-sm text-gray-300 mt-2 leading-relaxed">
                       {card.cardData.oracleText}
                     </p>
-                  )}
+                  )} */}
                 </>
               )}
             </div>
@@ -161,7 +130,7 @@ const CardDisplay = ({
 };
 
 export default function ComboQuizComponent() {
-  const [maxCards, setMaxCards] = useState(3);
+  const [maxCards, setMaxCards] = useState(2);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
     combo: null,
@@ -344,7 +313,7 @@ export default function ComboQuizComponent() {
             </div>
 
             {/* Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {combo.cards.map((card, idx) => (
                 <CardDisplay
                   key={idx}

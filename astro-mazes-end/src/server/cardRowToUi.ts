@@ -1,5 +1,13 @@
-import { parseImageUris } from '../lib/db/sqlite'
-import type { DbUICard } from '../types'
+import type { DbUICard, ParsedImageUris } from '../types'
+
+export function parseImageUris(imageUrisJson: string | null): ParsedImageUris {
+  if (!imageUrisJson) return {}
+  try {
+    return JSON.parse(imageUrisJson)
+  } catch {
+    return {}
+  }
+}
 
 function parseJsonArray(value: string | null | undefined): string[] {
   if (!value) return []
