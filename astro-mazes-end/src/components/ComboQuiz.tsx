@@ -297,6 +297,20 @@ export default function ComboQuizComponent() {
                 </div>
               </div>
 
+              {combo.produces.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-400 mb-2">Produces</h4>
+                  <ul className="space-y-2">
+                    {combo.produces.map((prod, idx) => (
+                      <li key={idx} className="flex items-start">
+                        <span className="text-yellow-400 mr-2">•</span>
+                        <span className="text-gray-300">{prod}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {combo.prerequisites.length > 0 && (
                 <div className="mt-6">
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Prerequisites</h4>
