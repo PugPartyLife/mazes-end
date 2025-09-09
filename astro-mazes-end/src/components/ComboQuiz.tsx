@@ -269,14 +269,28 @@ export default function ComboQuizComponent() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Total Mana Required</h4>
+                  <h4 className="text-sm font-medium text-gray-200 mb-2">Total Mana Required</h4>
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-bold text-yellow-400">{totalMana}</span>
                     <span className="text-gray-400">mana</span>
+                    {combo.colorIdentity.split('').map((color, idx) => (
+                      <span
+                        key={idx}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-md
+                          ${color === 'W' ? 'bg-yellow-100 text-gray-800' : ''}
+                          ${color === 'U' ? 'bg-blue-500 text-white' : ''}
+                          ${color === 'B' ? 'bg-gray-800 text-white ring-1 ring-gray-600' : ''}
+                          ${color === 'R' ? 'bg-red-500 text-white' : ''}
+                          ${color === 'G' ? 'bg-green-500 text-white' : ''}
+                        `}
+                      >
+                        {color}
+                      </span>
+                    ))}
                   </div>
                 </div>
                 
-                <div>
+                {/* <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Color Identity</h4>
                   <div className="flex gap-2">
                     {combo.colorIdentity.split('').map((color, idx) => (
@@ -294,22 +308,23 @@ export default function ComboQuizComponent() {
                       </span>
                     ))}
                   </div>
-                </div>
-              </div>
+                </div> */}
+              
+                {combo.produces.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-200 mb-2">Produces:</h4>
+                    <ul className="space-y-2">
+                      {combo.produces.map((prod, idx) => (
+                        <li key={idx} className="flex items-start">
+                          <span className="text-yellow-400 mr-2">•</span>
+                          <span className="text-gray-400">{prod}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-              {combo.produces.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Produces</h4>
-                  <ul className="space-y-2">
-                    {combo.produces.map((prod, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <span className="text-yellow-400 mr-2">•</span>
-                        <span className="text-gray-300">{prod}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              </div>
 
               {combo.prerequisites.length > 0 && (
                 <div className="mt-6">
