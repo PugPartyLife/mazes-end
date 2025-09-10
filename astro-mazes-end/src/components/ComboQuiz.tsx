@@ -2,6 +2,8 @@ import MtgCard from './MtgCard';
 import { mapGraphQLCardToUi } from '../server/cardRowToUi';
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff } from 'lucide-react';
+import ManaText from './ManaText';
+import type { ColorId } from '../types/magic';
 
 // Types
 interface ComboData {
@@ -296,7 +298,11 @@ export default function ComboQuizComponent() {
                           ${color === 'G' ? 'bg-green-500 text-white' : ''}
                         `}
                       >
-                        {color}
+                      <ManaText
+                        text={`{${color as ColorId}}`}
+                        size={48}
+                        inline={true}
+                      />
                       </span>
                     ))}
                   </div>
