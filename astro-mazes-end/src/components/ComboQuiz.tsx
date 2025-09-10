@@ -21,6 +21,7 @@ interface ComboData {
       oracleText: string;
       priceUsd: number;
       imageUris?: {
+        artCrop: string;
         normal: string;
       };
     };
@@ -54,9 +55,18 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
             manaCost
             typeLine
             oracleText
+            power
+            toughness
+            rarity
+            layout
+            priceUsd
+            setCode
+            setName
+            artist
             colorIdentity
             colors
             imageUris {
+              artCrop
               normal
             }
           }
@@ -103,8 +113,10 @@ const CardDisplay = ({
             <div>
               {card.cardData && (
                 <>
-                  <div className="flex items-center gap-2 mb-3">
-                    <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
+                  <div className="flex items-center justify-center gap-2 mb-3 overflow-hidden">
+                    <div className="w-full max-w-[280px] relative overflow-hidden">
+                      <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
+                    </div>
                   </div>
                   {/* <p className="text-sm text-gray-400">{card.cardData.typeLine}</p>
                   {card.cardData.oracleText && (

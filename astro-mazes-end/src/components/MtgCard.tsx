@@ -22,7 +22,7 @@ const HEX: Record<string, string> = {
   G: '#A3C095'
 }
 const COLORLESS = '#CAC5C0'
-const ARTIFACT_BROWN = '#B89E72' // “old artifact” feel
+const ARTIFACT_BROWN = '#B89E72' // "old artifact" feel
 const LEGEND_GOLD = '#DAA21C'
 
 /** Prefer color identity (accounts for back side & activated abilities) */
@@ -286,15 +286,16 @@ export default function MtgCard ({
           'inset 0 0 0 2px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.6)'
       }}
     >
-      {/* Inner frame as a grid: [topbar, ART (flex), type, rules, footer] */}
+      {/* Inner frame with adjusted grid for 40% text area max */}
       <div
         className='
           absolute inset-0 rounded-[1rem] overflow-visible
           grid h-full
-          grid-rows-[auto_minmax(4.5rem,1fr)_auto_auto_auto]
-          sm:grid-rows-[auto_minmax(6rem,1fr)_auto_auto_auto]
-          md:grid-rows-[auto_minmax(7rem,1fr)_auto_auto_auto]
+          grid-rows-[auto_1fr_auto_minmax(0,30%)_auto]
         '
+        style={{
+          gridTemplateRows: 'auto 1fr auto minmax(0, 30%) auto'
+        }}
       >
         {/* Top bar */}
         <div className='flex items-start justify-between gap-2 px-3 pt-2 pb-1'>
@@ -310,10 +311,10 @@ export default function MtgCard ({
           ) : null}
         </div>
 
-        {/* Art window (flex height) */}
-        <div className='px-3 min-h-0 relative'>
-          <div className='relative w-full h-full min-h-[3.75rem] sm:min-h-[5rem] rounded-md overflow-hidden border border-neutral-700/70 bg-neutral-100'>
-            <div className='absolute inset-0'>
+        {/* Art window (takes remaining space after text) */}
+        <div className='px-3 min-h-0 relative overflow-hidden'>
+          <div className='relative w-full h-full rounded-md overflow-hidden border border-neutral-700/70 bg-neutral-100'>
+            <div className='absolute inset-0 overflow-hidden'>
               {artSrc ? (
                 <img
                   src={artSrc}
@@ -321,6 +322,7 @@ export default function MtgCard ({
                   className='w-full h-full object-cover object-left-top'
                   loading='lazy'
                   decoding='async'
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
                 />
               ) : (
                 <div className='w-full h-full grid place-items-center text-neutral-100 text-sm'>
@@ -408,35 +410,38 @@ export default function MtgCard ({
           </div>
         </div>
 
-        {/* Rules + Flavor */}
-        <div className='relative mt-2 px-3 pb-2'>
-          <div className='relative rounded-md border border-neutral-700/70 bg-[#f7f2e7] text-neutral-900 px-3 py-2 min-h-[84px] sm:min-h-[100px]'>
-            <div className='space-y-1.5 text-[12px] sm:text-[13px] leading-5 max-h-[7.5rem] sm:max-h-[9rem] md:max-h-[10.5rem] overflow-y-auto scroll-thin pr-1'>
-              {oracleLines.length ? (
-                oracleLines.map((line, i) => (
-                  <p key={i}>
-                    <InlineMana text={line} />
+        {/* Rules + Flavor (constrained to 40% max height) */}
+        <div className='relative mt-2 px-3 pb-2 overflow-hidden'>
+          <div className='relative rounded-md border border-neutral-700/70 bg-[#f7f2e7] text-neutral-900 px-3 py-2 h-full flex flex-col'>
+            <div className='flex-1 overflow-y-auto scroll-thin pr-1'>
+              <div className='space-y-1.5 text-[11px] sm:text-[12px] leading-[1.35]'>
+                {oracleLines.length ? (
+                  oracleLines.map((line, i) => (
+                    <p key={i}>
+                      <InlineMana text={line} />
+                    </p>
+                  ))
+                ) : (
+                  <p className='text-neutral-500 italic'>—</p>
+                )}
+              </div>
+
+              {flavorText ? (
+                <>
+                  <div className='my-1.5 border-t border-neutral-300/70' />
+                  <p className='text-[11px] sm:text-[12px] italic text-neutral-700 leading-[1.35]'>
+                    {flavorText}
                   </p>
-                ))
-              ) : (
-                <p className='text-neutral-500 italic'>—</p>
-              )}
+                </>
+              ) : null}
             </div>
 
-            {flavorText ? (
-              <>
-                <div className='my-2 border-t border-neutral-300/70' />
-                <p className='text-[12px] sm:text-[13px] italic text-neutral-700 leading-5'>
-                  {flavorText}
-                </p>
-              </>
-            ) : null}
-
+            {/* Power/Toughness or Loyalty indicator - positioned at bottom right of text box */}
             {(hasPT || hasLoyalty) && (
-              <div className='absolute -bottom-3 -right-2'>
-                <div className='rounded-md bg-neutral-900 text-neutral-100 border border-neutral-700 px-2 py-1 shadow'>
-                  <span className='text-xs sm:text-sm font-semibold tracking-wide'>
-                    {hasPT ? `${power}/${toughness}` : `Loyalty ${loyalty}`}
+              <div className='absolute -bottom-[1px] -right-[1px]'>
+                <div className='rounded-tl-md rounded-br-md bg-neutral-900 text-neutral-100 border-t border-l border-neutral-700 px-2.5 py-1 shadow-md'>
+                  <span className='text-sm sm:text-[15px] font-bold tracking-wide'>
+                    {hasPT ? `${power}/${toughness}` : loyalty}
                   </span>
                 </div>
               </div>
