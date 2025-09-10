@@ -1,7 +1,7 @@
 import MtgCard from './MtgCard';
 import { mapGraphQLCardToUi } from '../server/cardRowToUi';
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff, Brain, Layers } from 'lucide-react';
 import ManaText from './ManaText';
 import type { ColorId } from '../types/magic';
 
@@ -36,6 +36,7 @@ interface QuizState {
   showSteps: boolean;
   showAnswer: boolean;
   loading: boolean;
+  mode: 'quiz' | 'browse';
 }
 
 // GraphQL query for random combos
@@ -84,13 +85,15 @@ const CardDisplay = ({
   revealed, 
   onReveal,
   index,
-  total 
+  total,
+  mode 
 }: { 
   card: ComboData['cards'][0];
   revealed: boolean;
   onReveal: () => void;
   index: number;
   total: number;
+  mode: 'quiz' | 'browse';
 }) => {
   return (
     <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -99,7 +102,7 @@ const CardDisplay = ({
           <h4 className="text-sm font-medium text-gray-400">
             Card {index + 1} of {total}
           </h4>
-          {!revealed && (
+          {!revealed && mode === 'quiz' && (
             <button
               onClick={onReveal}
               className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded flex items-center gap-1"
@@ -120,12 +123,6 @@ const CardDisplay = ({
                       <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
                     </div>
                   </div>
-                  {/* <p className="text-sm text-gray-400">{card.cardData.typeLine}</p>
-                  {card.cardData.oracleText && (
-                    <p className="text-sm text-gray-300 mt-2 leading-relaxed">
-                      {card.cardData.oracleText}
-                    </p>
-                  )} */}
                 </>
               )}
             </div>
@@ -146,12 +143,14 @@ const CardDisplay = ({
 export default function ComboQuizComponent() {
   const [maxCards, setMaxCards] = useState(2);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
     combo: null,
     revealedCards: new Set([0]), // First card always revealed
     showSteps: false,
     showAnswer: false,
-    loading: false
+    loading: false,
+    mode: 'quiz' // Default to quiz mode
   });
 
   const fetchNewCombo = async () => {
@@ -169,13 +168,19 @@ export default function ComboQuizComponent() {
       const { data } = await response.json();
       
       if (data?.randomCombos?.combos?.[0]) {
-        setQuizState({
-          combo: data.randomCombos.combos[0],
-          revealedCards: new Set([0]),
-          showSteps: false,
-          showAnswer: false,
+        const combo = data.randomCombos.combos[0];
+        const initialRevealedCards = quizState.mode === 'browse' 
+          ? new Set(Array.from({ length: combo.cards.length }, (_, i) => i))
+          : new Set([0]);
+          
+        setQuizState(prev => ({
+          ...prev,
+          combo: combo,
+          revealedCards: initialRevealedCards,
+          showSteps: prev.mode === 'browse', // Auto-show steps in browse mode
+          showAnswer: prev.mode === 'browse', // Auto-show answer in browse mode
           loading: false
-        });
+        }));
       }
     } catch (error) {
       console.error('Failed to fetch combo:', error);
@@ -203,7 +208,24 @@ export default function ComboQuizComponent() {
     }));
   };
 
-  const { combo, revealedCards, showSteps, showAnswer, loading } = quizState;
+  const switchMode = (newMode: 'quiz' | 'browse') => {
+    if (!quizState.combo) return;
+    
+    const newRevealedCards = newMode === 'browse'
+      ? new Set(Array.from({ length: quizState.combo.cards.length }, (_, i) => i))
+      : new Set([0]);
+      
+    setQuizState(prev => ({
+      ...prev,
+      mode: newMode,
+      revealedCards: newRevealedCards,
+      showSteps: newMode === 'browse', // Auto-show in browse mode
+      showAnswer: newMode === 'browse' // Auto-show in browse mode
+    }));
+    setModeDropdownOpen(false);
+  };
+
+  const { combo, revealedCards, showSteps, showAnswer, loading, mode } = quizState;
   const totalMana = combo ? 
     combo.cards.reduce((sum, card) => {
       const match = card.cardData?.manaCost?.match(/\{(\d+)\}/);
@@ -227,6 +249,51 @@ export default function ComboQuizComponent() {
 
         {/* Controls */}
         <div className="flex justify-center items-center gap-4 mb-8">
+          {/* Mode Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setModeDropdownOpen(!modeDropdownOpen)}
+              className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 flex items-center gap-2 border border-gray-700"
+            >
+              {mode === 'quiz' ? (
+                <>
+                  <Brain className="w-4 h-4" />
+                  <span>Quiz Mode</span>
+                </>
+              ) : (
+                <>
+                  <Layers className="w-4 h-4" />
+                  <span>Browse Mode</span>
+                </>
+              )}
+              <ChevronDown className={`w-4 h-4 transition-transform ${modeDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {modeDropdownOpen && (
+              <div className="absolute top-full mt-2 left-0 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                <button
+                  onClick={() => switchMode('quiz')}
+                  className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-t-lg flex items-center gap-2 ${
+                    mode === 'quiz' ? 'bg-gray-700 text-yellow-400' : 'text-gray-300'
+                  }`}
+                >
+                  <Brain className="w-4 h-4" />
+                  Quiz Mode
+                </button>
+                <button
+                  onClick={() => switchMode('browse')}
+                  className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-b-lg flex items-center gap-2 ${
+                    mode === 'browse' ? 'bg-gray-700 text-yellow-400' : 'text-gray-300'
+                  }`}
+                >
+                  <Layers className="w-4 h-4" />
+                  Browse Mode
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Card Count Selector */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -307,26 +374,6 @@ export default function ComboQuizComponent() {
                     ))}
                   </div>
                 </div>
-                
-                {/* <div>
-                  <h4 className="text-sm font-medium text-gray-400 mb-2">Color Identity</h4>
-                  <div className="flex gap-2">
-                    {combo.colorIdentity.split('').map((color, idx) => (
-                      <span
-                        key={idx}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-md
-                          ${color === 'W' ? 'bg-yellow-100 text-gray-800' : ''}
-                          ${color === 'U' ? 'bg-blue-500 text-white' : ''}
-                          ${color === 'B' ? 'bg-gray-800 text-white ring-1 ring-gray-600' : ''}
-                          ${color === 'R' ? 'bg-red-500 text-white' : ''}
-                          ${color === 'G' ? 'bg-green-500 text-white' : ''}
-                        `}
-                      >
-                        {color}
-                      </span>
-                    ))}
-                  </div>
-                </div> */}
               
                 {combo.produces.length > 0 && (
                   <div>
@@ -369,36 +416,39 @@ export default function ComboQuizComponent() {
                   onReveal={() => revealCard(idx)}
                   index={idx}
                   total={combo.cards.length}
+                  mode={mode}
                 />
               ))}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4 justify-center">
-              <button
-                onClick={revealAllCards}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg flex items-center gap-2"
-              >
-                <Eye className="w-4 h-4" />
-                Reveal All Cards
-              </button>
-              
-              <button
-                onClick={() => setQuizState(prev => ({ ...prev, showSteps: !prev.showSteps }))}
-                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                {showSteps ? 'Hide' : 'Show'} Steps
-              </button>
-              
-              <button
-                onClick={() => setQuizState(prev => ({ ...prev, showAnswer: !prev.showAnswer }))}
-                className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-medium flex items-center gap-2"
-              >
-                <SkipForward className="w-4 h-4" />
-                {showAnswer ? 'Hide' : 'Reveal'} Answer
-              </button>
-            </div>
+            {/* Action Buttons - Only show in quiz mode */}
+            {mode === 'quiz' && (
+              <div className="flex flex-wrap gap-4 justify-center">
+                <button
+                  onClick={revealAllCards}
+                  className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg flex items-center gap-2"
+                >
+                  <Eye className="w-4 h-4" />
+                  Reveal All Cards
+                </button>
+                
+                <button
+                  onClick={() => setQuizState(prev => ({ ...prev, showSteps: !prev.showSteps }))}
+                  className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  {showSteps ? 'Hide' : 'Show'} Steps
+                </button>
+                
+                <button
+                  onClick={() => setQuizState(prev => ({ ...prev, showAnswer: !prev.showAnswer }))}
+                  className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded-lg font-medium flex items-center gap-2"
+                >
+                  <SkipForward className="w-4 h-4" />
+                  {showAnswer ? 'Hide' : 'Reveal'} Answer
+                </button>
+              </div>
+            )}
 
             {/* Steps */}
             {showSteps && combo.steps.length > 0 && (
