@@ -1,7 +1,7 @@
 import MtgCard from './MtgCard';
 import { mapGraphQLCardToUi } from '../server/cardRowToUi';
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff, Brain, Layers } from 'lucide-react';
+import { RefreshCw, Loader2, ChevronDown, Play, SkipForward, Eye, EyeOff, Brain, Layers, X } from 'lucide-react';
 import ManaText from './ManaText';
 import type { ColorId } from '../types/magic';
 
@@ -37,6 +37,7 @@ interface QuizState {
   showAnswer: boolean;
   loading: boolean;
   mode: 'quiz' | 'browse';
+  selectedCard: ComboData['cards'][0] | null;
 }
 
 // GraphQL query for random combos
@@ -79,11 +80,101 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
   }
 `;
 
+// Card Modal Component
+const CardModal = ({ 
+  card, 
+  onClose 
+}: { 
+  card: ComboData['cards'][0];
+  onClose: () => void;
+}) => {
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEsc);
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.body.style.overflow = 'unset';
+    };
+  }, [onClose]);
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div 
+        className="relative my-8 w-full max-w-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute -top-12 right-0 text-white hover:text-yellow-400 transition-colors p-2 z-10"
+          aria-label="Close modal"
+        >
+          <X className="w-8 h-8" />
+        </button>
+        
+        <div className="flex flex-col items-center gap-6">
+          {/* Card at normal size - MtgCard already has max-w-sm */}
+          {card.cardData && (
+            <div className="w-full flex justify-center">
+              <MtgCard card={mapGraphQLCardToUi(card.cardData)} />
+            </div>
+          )}
+          
+          {/* Card Info */}
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 w-full">
+            <h3 className="text-xl font-bold text-white mb-3">{card.cardData?.cardName}</h3>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-400 mb-1">Type</p>
+                <p className="text-white">{card.cardData?.typeLine}</p>
+              </div>
+              
+              {card.cardData?.manaCost && (
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">Mana Cost</p>
+                  <ManaText text={card.cardData.manaCost} size={20} gap={2} inline />
+                </div>
+              )}
+              
+              {card.cardData?.priceUsd && (
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">Price</p>
+                  <p className="text-white font-medium">${card.cardData.priceUsd.toFixed(2)}</p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-sm text-gray-400 mb-1">Combo Usage</p>
+                <p className="text-white">Appears in {card.combosCount} combos</p>
+              </div>
+            </div>
+            
+            {card.cardData?.oracleText && (
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                <p className="text-sm text-gray-400 mb-2">Oracle Text</p>
+                <p className="text-gray-300 whitespace-pre-wrap">{card.cardData.oracleText}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Card display component
 const CardDisplay = ({ 
   card, 
   revealed, 
   onReveal,
+  onCardClick,
   index,
   total,
   mode 
@@ -91,6 +182,7 @@ const CardDisplay = ({
   card: ComboData['cards'][0];
   revealed: boolean;
   onReveal: () => void;
+  onCardClick: () => void;
   index: number;
   total: number;
   mode: 'quiz' | 'browse';
@@ -115,17 +207,18 @@ const CardDisplay = ({
         
         {revealed ? (
           <div className="space-y-3">
-            <div>
-              {card.cardData && (
-                <>
-                  <div className="flex items-center justify-center gap-2 mb-3 overflow-hidden">
-                    <div className="w-full max-w-[280px] relative overflow-hidden">
-                      <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
-                    </div>
+            {card.cardData && (
+              <div 
+                className="cursor-pointer group"
+                onClick={onCardClick}
+              >
+                <div className="flex items-center justify-center gap-2 mb-3 overflow-hidden">
+                  <div className="w-full max-w-[280px] relative overflow-hidden transform transition-transform group-hover:scale-105">
+                    <MtgCard card={mapGraphQLCardToUi(card.cardData)} /> 
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
             <div className="text-xs text-gray-500 pt-2 border-t border-gray-700">
               Appears in {card.combosCount} combos
             </div>
@@ -150,7 +243,8 @@ export default function ComboQuizComponent() {
     showSteps: false,
     showAnswer: false,
     loading: false,
-    mode: 'quiz' // Default to quiz mode
+    mode: 'quiz', // Default to quiz mode
+    selectedCard: null
   });
 
   const fetchNewCombo = async () => {
@@ -179,7 +273,8 @@ export default function ComboQuizComponent() {
           revealedCards: initialRevealedCards,
           showSteps: prev.mode === 'browse', // Auto-show steps in browse mode
           showAnswer: prev.mode === 'browse', // Auto-show answer in browse mode
-          loading: false
+          loading: false,
+          selectedCard: null
         }));
       }
     } catch (error) {
@@ -225,7 +320,7 @@ export default function ComboQuizComponent() {
     setModeDropdownOpen(false);
   };
 
-  const { combo, revealedCards, showSteps, showAnswer, loading, mode } = quizState;
+  const { combo, revealedCards, showSteps, showAnswer, loading, mode, selectedCard } = quizState;
   const totalMana = combo ? 
     combo.cards.reduce((sum, card) => {
       const match = card.cardData?.manaCost?.match(/\{(\d+)\}/);
@@ -414,6 +509,7 @@ export default function ComboQuizComponent() {
                   card={card}
                   revealed={revealedCards.has(idx)}
                   onReveal={() => revealCard(idx)}
+                  onCardClick={() => setQuizState(prev => ({ ...prev, selectedCard: card }))}
                   index={idx}
                   total={combo.cards.length}
                   mode={mode}
@@ -486,6 +582,14 @@ export default function ComboQuizComponent() {
           </div>
         )}
       </div>
+      
+      {/* Card Modal */}
+      {selectedCard && (
+        <CardModal 
+          card={selectedCard}
+          onClose={() => setQuizState(prev => ({ ...prev, selectedCard: null }))}
+        />
+      )}
     </section>
   );
 }

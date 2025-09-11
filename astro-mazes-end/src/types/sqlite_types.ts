@@ -351,3 +351,27 @@ export type AnyDatabaseType =
   | CommanderRecommendation
   | CardUsageData
   | DeckReference
+
+export interface CardFrequencyChange {
+  cardName: string;
+  month: string; // Format: YYYY-MM
+  previousMonth: string; // Format: YYYY-MM
+  currentFrequency: number; // Number of decks including this card in current month
+  previousFrequency: number; // Number of decks including this card in previous month
+  percentageChange: number; // Percentage change from previous month
+  absoluteChange: number; // Raw difference in deck count
+  significanceScore: number; // Statistical significance score
+  card?: Card; // Optional link to full card details (using your existing Card type)
+}
+
+// If you need the raw database row type as well:
+export interface CardFrequencyChangeRow {
+  cardName: string;
+  month: string;
+  previousMonth: string;
+  currentFrequency: number;
+  previousFrequency: number;
+  percentageChange: number;
+  absoluteChange: number;
+  significanceScore: number;
+}

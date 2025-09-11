@@ -45,3 +45,4 @@ export interface CardStatsSummary {
   databasePath: string;
   databaseSize: number;
 }
+

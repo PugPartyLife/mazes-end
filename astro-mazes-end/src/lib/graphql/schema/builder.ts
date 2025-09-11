@@ -1,6 +1,14 @@
 import SchemaBuilder from '@pothos/core'
 import DataloaderPlugin from '@pothos/plugin-dataloader'
-import type { ComboData, ComboPackage, Distance1Result, GraphStatistics, ComboSearchResult, TournamentResult, RandomCombosResult } from '../../graph/comboGraphClient'
+import type { 
+  ComboData, 
+  ComboPackage, 
+  Distance1Result, 
+  GraphStatistics, 
+  ComboSearchResult, 
+  TournamentResult, 
+  RandomCombosResult 
+} from '../../graph/comboGraphClient'
 import type { 
   TopCommander, 
   TopCardForCommander, 
@@ -14,7 +22,8 @@ import type {
   DatabaseSummary,
   ParsedImageUris,
   CardUsageData,
-  DeckReference
+  DeckReference,
+  CardFrequencyChange
 } from '../../../types'
 
 export const builder = new SchemaBuilder<{
@@ -50,6 +59,7 @@ export const builder = new SchemaBuilder<{
     ColorCount: any
     CardUsage: CardUsageData
     DeckInfo: DeckReference
+    CardFrequencyChange: CardFrequencyChange
   }
 }>({
   plugins: [DataloaderPlugin],

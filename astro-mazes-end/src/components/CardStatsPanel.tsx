@@ -136,7 +136,7 @@ export default function CardStatsPanel() {
   const [cardData, setCardData] = useState<CardUsageData[]>([]);
   const [histogramData, setHistogramData] = useState<CardBin[]>([]);
   const [selectedBin, setSelectedBin] = useState<CardBin | null>(null);
-  const [binCount, setBinCount] = useState(10); // Number of bins for histogram
+  const [binCount, setBinCount] = useState(20); // Number of bins for histogram
 
   // Available time ranges
   const timeRanges: TimeRange[] = [
@@ -162,19 +162,33 @@ export default function CardStatsPanel() {
     }
   `;
 
-  // Create histogram bins
+  // Create histogram bins using power-law distribution
   const createHistogramBins = (data: CardUsageData[], numberOfBins: number): CardBin[] => {
     if (data.length === 0) return [];
 
     const maxCount = Math.max(...data.map(card => card.timesPlayed));
     const minCount = Math.min(...data.map(card => card.timesPlayed));
-    const binSize = Math.ceil((maxCount - minCount + 1) / numberOfBins);
-
+    
+    // Use logarithmic scale for power-law distribution
+    const logMin = Math.log(minCount || 1);
+    const logMax = Math.log(maxCount);
+    const logRange = logMax - logMin;
+    
     const bins: CardBin[] = [];
     
     for (let i = 0; i < numberOfBins; i++) {
-      const minValue = minCount + (i * binSize);
-      const maxValue = i === numberOfBins - 1 ? maxCount : minCount + ((i + 1) * binSize) - 1;
+      // Calculate bin boundaries on log scale
+      const logStart = logMin + (logRange * i / numberOfBins);
+      const logEnd = logMin + (logRange * (i + 1) / numberOfBins);
+      
+      // Convert back to linear scale
+      let minValue = Math.floor(Math.exp(logStart));
+      let maxValue = i === numberOfBins - 1 ? maxCount : Math.floor(Math.exp(logEnd));
+      
+      // Ensure no overlap
+      if (i > 0 && bins.length > 0) {
+        minValue = Math.max(minValue, bins[bins.length - 1].maxValue + 1);
+      }
       
       const cardsInBin = data.filter(card => 
         card.timesPlayed >= minValue && card.timesPlayed <= maxValue
@@ -330,7 +344,7 @@ export default function CardStatsPanel() {
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-5 h-5 text-yellow-400" />
             <h3 className="text-lg font-semibold text-white">
-              Card Usage Distribution
+              Card Usage Power-Law Distribution
             </h3>
             <span className="text-sm text-gray-400 ml-auto">
               Click a bar to see cards in that range
@@ -341,7 +355,7 @@ export default function CardStatsPanel() {
             <ResponsiveContainer width="100%" height={400}>
                 <BarChart 
                     data={histogramData} 
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                     <XAxis
@@ -350,7 +364,8 @@ export default function CardStatsPanel() {
                     tick={{ fill: '#9ca3af', fontSize: 12 }}
                     angle={-45}
                     textAnchor="end"
-                    label={{ value: 'Times Played', position: 'insideBottom', offset: -10, fill: '#9ca3af' }}
+                    height={60}
+                    label={{ value: 'Times Played', position: 'insideBottom', offset: -40, fill: '#9ca3af' }}
                     />
                     <YAxis 
                     stroke="#9ca3af"

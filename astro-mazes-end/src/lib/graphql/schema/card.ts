@@ -1,7 +1,7 @@
 import { builder } from './builder'
 import { queryDatabase, queryDatabaseSingle, queries } from '../../db/sqlite'
 import { parseColors, parseImageUris, coerceImageObj } from './shared/utils'
-import type { Card, CardUsageData, DeckReference } from '../../../types'
+import type { Card, CardUsageData, DeckReference, CardFrequencyChange } from '../../../types'
 
 // Card object type
 builder.objectType('Card', {
@@ -164,6 +164,33 @@ builder.objectType('CardUsage', {
   })
 })
 
+// Monthly card frequency change tracking
+builder.objectType('CardFrequencyChange', {
+  fields: (t) => ({
+    cardName: t.exposeString('cardName'),
+    month: t.exposeString('month'), // Format: YYYY-MM
+    previousMonth: t.exposeString('previousMonth'),
+    currentFrequency: t.exposeInt('currentFrequency'), // Number of decks this month
+    previousFrequency: t.exposeInt('previousFrequency'), // Number of decks previous month
+    percentageChange: t.exposeFloat('percentageChange'), // % change from previous month
+    absoluteChange: t.exposeInt('absoluteChange'), // Raw difference in deck count
+    significanceScore: t.exposeFloat('significanceScore'), // Statistical significance of change
+    
+    // Link to card details
+    card: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.cardName]
+        )
+        return results[0] || null
+      }
+    })
+  })
+})
+
 // Card-related queries
 export const cardQueries = (t: any) => ({
   // Cards page: aggregated performance stats + card
@@ -182,7 +209,7 @@ export const cardQueries = (t: any) => ({
 
   // Card usage tracking
   cardUsage: t.field({
-    type: [],
+    type: ['CardUsage'],
     args: {
       days: t.arg.int({ defaultValue: 30 }),
     },
@@ -245,6 +272,160 @@ export const cardQueries = (t: any) => ({
 
       return cardUsageWithDecks;
     },
+  }),
+
+  // Track significant card frequency changes month-over-month
+  cardFrequencyChanges: t.field({
+    type: ['CardFrequencyChange'],
+    args: {
+      minChangePercent: t.arg.float({ defaultValue: 20.0 }), // Minimum % change to be considered significant
+      minDecksThreshold: t.arg.int({ defaultValue: 10 }), // Minimum decks in a month to consider
+      monthsBack: t.arg.int({ defaultValue: 6 }), // How many months back to analyze
+    },
+    resolve: async (_: any, { minChangePercent, minDecksThreshold, monthsBack }: { 
+      minChangePercent: number, 
+      minDecksThreshold: number,
+      monthsBack: number 
+    }) => {
+      // Query to calculate month-over-month card frequency changes
+      const results = await queryDatabase<any>(`
+        WITH monthly_card_counts AS (
+          -- Count card usage by month
+          SELECT 
+            dc.card_name,
+            strftime('%Y-%m', t.start_date) as month,
+            COUNT(DISTINCT dc.deck_id) as deck_count,
+            COUNT(DISTINCT t.tournament_id) as tournament_count
+          FROM deck_cards dc
+          JOIN decks d ON dc.deck_id = d.deck_id
+          JOIN tournaments t ON d.tournament_id = t.tournament_id
+          WHERE d.has_decklist = 1
+            AND dc.deck_section != 'commander'
+            AND t.start_date >= date('now', '-' || ? || ' months')
+          GROUP BY dc.card_name, strftime('%Y-%m', t.start_date)
+          HAVING COUNT(DISTINCT dc.deck_id) >= ?
+        ),
+        month_pairs AS (
+          -- Join each month with its previous month
+          SELECT 
+            curr.card_name,
+            curr.month,
+            prev.month as previous_month,
+            curr.deck_count as current_frequency,
+            prev.deck_count as previous_frequency,
+            CAST((curr.deck_count - prev.deck_count) AS REAL) / prev.deck_count * 100 as percentage_change,
+            curr.deck_count - prev.deck_count as absolute_change,
+            -- Simple significance score based on both absolute and percentage change
+            ABS(CAST((curr.deck_count - prev.deck_count) AS REAL) / prev.deck_count) * 
+            LOG(curr.deck_count + prev.deck_count) as significance_score
+          FROM monthly_card_counts curr
+          INNER JOIN monthly_card_counts prev 
+            ON curr.card_name = prev.card_name
+            AND prev.month = strftime('%Y-%m', date(curr.month || '-01', '-1 month'))
+          WHERE ABS(CAST((curr.deck_count - prev.deck_count) AS REAL) / prev.deck_count * 100) >= ?
+        )
+        SELECT 
+          card_name as cardName,
+          month,
+          previous_month as previousMonth,
+          current_frequency as currentFrequency,
+          previous_frequency as previousFrequency,
+          ROUND(percentage_change, 2) as percentageChange,
+          absolute_change as absoluteChange,
+          ROUND(significance_score, 3) as significanceScore
+        FROM month_pairs
+        ORDER BY month DESC, significance_score DESC
+      `, [monthsBack, minDecksThreshold, minChangePercent]);
+
+      return results;
+    }
+  }),
+
+  // Get trending cards for a specific month
+  trendingCardsForMonth: t.field({
+    type: ['CardFrequencyChange'],
+    args: {
+      month: t.arg.string({ required: true }), // Format: YYYY-MM
+      direction: t.arg.string({ defaultValue: 'both' }), // 'up', 'down', or 'both'
+      limit: t.arg.int({ defaultValue: 20 }),
+    },
+    resolve: async (_: any, { month, direction, limit }: { 
+      month: string, 
+      direction: string,
+      limit: number 
+    }) => {
+      let directionClause = '';
+      if (direction === 'up') {
+        directionClause = 'AND percentage_change > 0';
+      } else if (direction === 'down') {
+        directionClause = 'AND percentage_change < 0';
+      }
+
+      const results = await queryDatabase<any>(`
+        WITH monthly_card_counts AS (
+          SELECT 
+            dc.card_name,
+            strftime('%Y-%m', t.start_date) as month,
+            COUNT(DISTINCT dc.deck_id) as deck_count
+          FROM deck_cards dc
+          JOIN decks d ON dc.deck_id = d.deck_id
+          JOIN tournaments t ON d.tournament_id = t.tournament_id
+          WHERE d.has_decklist = 1
+            AND dc.deck_section != 'commander'
+            AND strftime('%Y-%m', t.start_date) IN (?, strftime('%Y-%m', date(? || '-01', '-1 month')))
+          GROUP BY dc.card_name, strftime('%Y-%m', t.start_date)
+          HAVING COUNT(DISTINCT dc.deck_id) >= 10
+        ),
+        month_comparison AS (
+          SELECT 
+            curr.card_name,
+            curr.month,
+            prev.month as previous_month,
+            curr.deck_count as current_frequency,
+            prev.deck_count as previous_frequency,
+            CAST((curr.deck_count - prev.deck_count) AS REAL) / prev.deck_count * 100 as percentage_change,
+            curr.deck_count - prev.deck_count as absolute_change,
+            ABS(CAST((curr.deck_count - prev.deck_count) AS REAL) / prev.deck_count) * 
+            LOG(curr.deck_count + prev.deck_count) as significance_score
+          FROM monthly_card_counts curr
+          INNER JOIN monthly_card_counts prev 
+            ON curr.card_name = prev.card_name
+            AND curr.month = ?
+            AND prev.month = strftime('%Y-%m', date(? || '-01', '-1 month'))
+          WHERE 1=1 ${directionClause}
+        )
+        SELECT 
+          card_name as cardName,
+          month,
+          previous_month as previousMonth,
+          current_frequency as currentFrequency,
+          previous_frequency as previousFrequency,
+          ROUND(percentage_change, 2) as percentageChange,
+          absolute_change as absoluteChange,
+          ROUND(significance_score, 3) as significanceScore
+        FROM month_comparison
+        ORDER BY significance_score DESC
+        LIMIT ?
+      `, [month, month, month, month, limit]);
+
+      return results;
+    }
+  }),
+
+  // Get available months with card data
+  availableMonthsForFrequency: t.field({
+    type: ['String'],
+    resolve: async () => {
+      const results = await queryDatabase<{ month: string }>(`
+        SELECT DISTINCT strftime('%Y-%m', t.start_date) as month
+        FROM tournaments t
+        JOIN decks d ON t.tournament_id = d.tournament_id
+        WHERE d.has_decklist = 1
+        ORDER BY month DESC
+      `, []);
+      
+      return results.map(r => r.month);
+    }
   }),
 
   // Search cards by name
