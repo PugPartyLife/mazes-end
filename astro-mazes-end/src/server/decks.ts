@@ -30,13 +30,12 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
       wins
       losses
       draws
-      avgWinRate
+      winRate
       standing
       lastSeen
       cardCount
       sameCommanderCount
       colors
-      top8Count
       commanders {
         cardName
         manaCost
@@ -104,7 +103,7 @@ export async function loadTopDeckBoxes(limit = 15): Promise<DeckBoxProps[]> {
       wins: Number(r.wins || 0),
       losses: Number(r.losses || 0),
       draws: Number(r.draws || 0),
-      avgWinRate: Number(r.avgWinRate || 0),
+      avgWinRate: Number(r.winRate || 0),
       top8Count: top8,
       deckCount: 1,
       sameCommanderCount: Math.max(0, Number(r.sameCommanderCount || 0)),

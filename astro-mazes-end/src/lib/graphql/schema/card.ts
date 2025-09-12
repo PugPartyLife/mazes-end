@@ -593,6 +593,10 @@ export const cardQueries = (t: any) => ({
         ? '2025-08-01'
         : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+      // Build the WHERE clause for card filtering
+      const cardWhereClause = cardName ? 'AND dc.card_name = ?' : '';
+      const cardParams = cardName ? [cardName] : [];
+
       // Single query that gets all data at once
       const results = await queryDatabase<any>(`
         WITH card_usage AS (
@@ -606,9 +610,10 @@ export const cardQueries = (t: any) => ({
           WHERE t.start_date >= ?
             AND d.has_decklist = 1
             AND dc.deck_section != 'commander'
+            ${cardWhereClause}
           GROUP BY dc.card_name
           ORDER BY times_played DESC
-          LIMIT 100
+          ${cardName ? '' : 'LIMIT 100'}
         )
         SELECT 
           cu.card_name,
@@ -677,7 +682,7 @@ export const cardQueries = (t: any) => ({
           AND d.has_decklist = 1
           AND dc.deck_section != 'commander'
         ORDER BY cu.times_played DESC, t.start_date DESC
-      `, [startDate, startDate]);
+      `, [startDate, ...cardParams, startDate]);
 
       // Group results by card
       const cardMap = new Map<string, any>();

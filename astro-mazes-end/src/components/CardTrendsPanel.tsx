@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Calendar, AlertCircle, BarChart3, X, Trophy } from 'lucide-react';
 import DeckBox from './DeckBox';
+import { mapGraphQLCardToUi } from '../server/cardRowToUi'
 
 interface CardFrequencyChange {
   cardName: string;
@@ -222,6 +223,36 @@ export default function CardTrendsPanel() {
                     standing
                     lastSeen
                     cardCount
+                    commanders {
+                      cardName
+                      artist
+                      cardFaces
+                      colorIdentity
+                      manaCost
+                      oracleText
+                      setName
+                      toughness
+                      typeLine
+                      power
+                      imageUris {
+                        artCrop
+                        normal
+                        png
+                        small
+                        face0ArtCrop
+                        face0BorderCrop
+                        face0Large
+                        face0Normal
+                        face0Png
+                        face0Small
+                        face1ArtCrop
+                        face1BorderCrop
+                        face1Large
+                        face1Normal
+                        face1Png
+                        face1Small
+                      }
+                    }
                   }
                 }
               }
@@ -235,22 +266,22 @@ export default function CardTrendsPanel() {
         
         // Since we're now filtering by cardName, we should get a single-item array
         const cardData = data?.cardUsageWithDeckDetails?.[0];
+
+        console.log('cardData:', cardData);
         
         if (cardData && cardData.deckBoxes) {
           const transformedDeckBoxes = cardData.deckBoxes.map((deck: any) => {
             // Parse colors from the deckColors field
             const colors = deck.deckColors ? deck.deckColors.split('').filter((c: string) => 'WUBRG'.includes(c)) : [];
-            
-            // Commander data will be added later when you update the query
-            const commanders: any[] = [];
-            
+            const commanders = deck.commanders ? deck.commanders.map(mapGraphQLCardToUi) : [];
+
             return {
               // Core props
               name: `${deck.tournamentName || 'Unknown Tournament'} - ${deck.player || 'Unknown Player'}`,
               tournamentName: deck.tournamentName || '',
               totalPlayers: deck.totalPlayers || 0,
               tournamentId: deck.tournamentId || '',
-              commanders: commanders,
+              commanders: commanders || [],
               colors: colors,
               player: deck.player || 'Unknown',
               
@@ -360,7 +391,7 @@ export default function CardTrendsPanel() {
 
   if (loading && availableMonths.length === 0) {
     return (
-      <section className="py-20 bg-gray-900">
+      <section className="py-8 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="h-96 flex items-center justify-center text-gray-400">
             Loading card trends data...
@@ -371,7 +402,7 @@ export default function CardTrendsPanel() {
   }
 
   return (
-    <section className="py-20 bg-gray-900">
+    <section className="py-8 bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">

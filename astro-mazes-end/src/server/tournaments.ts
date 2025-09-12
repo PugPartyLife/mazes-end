@@ -96,13 +96,12 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
       wins
       losses
       draws
-      avgWinRate
+      winRate
       standing
       lastSeen
       cardCount
       sameCommanderCount
       colors
-      top8Count
       commanders {
         cardName
         manaCost
@@ -167,7 +166,7 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
       wins: Number(r.wins || 0),
       losses: Number(r.losses || 0),
       draws: Number(r.draws || 0),
-      avgWinRate: Number(r.avgWinRate || 0),
+      avgWinRate: Number(r.winRate || 0),
       top8Count: r.top8Count ?? (r.standing != null && r.standing <= 8 ? 1 : 0),
       deckCount: 1,
       sameCommanderCount: Math.max(0, Number(r.sameCommanderCount || 0)),
