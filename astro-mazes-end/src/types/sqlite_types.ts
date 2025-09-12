@@ -375,3 +375,111 @@ export interface CardFrequencyChangeRow {
   absoluteChange: number;
   significanceScore: number;
 }
+
+export interface CardFrequencyChange {
+  cardName: string;
+  month: string; // Format: YYYY-MM
+  previousMonth: string; // Format: YYYY-MM
+  currentFrequency: number; // Number of decks including this card in current month
+  previousFrequency: number; // Number of decks including this card in previous month
+  percentageChange: number; // Percentage change from previous month
+  absoluteChange: number; // Raw difference in deck count
+  significanceScore: number; // Statistical significance score
+  
+  // New statistical fields
+  normalizedChange?: number; // Z-score difference (standard deviations from mean)
+  powerLawNormalizedChange?: number; // Log-space z-score difference (better for power-law)
+  monthlyVariance?: number; // Power-law variance for the month
+  
+  card?: Card; // Optional link to full card details
+}
+
+// Monthly distribution statistics type
+export interface MonthlyDistributionStats {
+  month: string;
+  totalCards: number;
+  minFrequency: number;
+  maxFrequency: number;
+  meanFrequency: number;
+  medianFrequency: number;
+  variance: number;
+  stdDev: number;
+  powerLawExponent: number; // Alpha parameter of power-law distribution
+  giniCoefficient: number; // Inequality measure (0 = perfect equality, 1 = perfect inequality)
+  
+  // Percentiles
+  q1: number; // 25th percentile
+  q3: number; // 75th percentile  
+  p90: number; // 90th percentile
+  p95: number; // 95th percentile
+  p99: number; // 99th percentile
+  
+  // Additional metrics
+  logRange: number; // log(max/min) - indicates spread on log scale
+  coefficientOfVariationSquared: number; // Normalized variance measure
+}
+
+export interface CardUsageWithDetails {
+  cardName: string;
+  timesPlayed: number;
+  deckBoxes: DeckBoxData[]; // This references your existing DeckBoxData type
+  card?: Card; // Optional reference to full card details
+}
+
+// If DeckBoxData isn't already in your types.ts, you'll need this too:
+export interface DeckBoxData {
+  deckId: string;
+  tournamentId?: string;
+  tournamentName?: string;
+  totalPlayers?: number;
+  playerName: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  winRate: number;
+  standing?: number;
+  lastSeen?: string;
+  totalCards: number;
+  deckColors?: string;
+  same_commander_count?: number;
+  // Commander data with c1_/c2_ prefixes as returned from query
+  c1_name?: string;
+  c1_mana_cost?: string;
+  c1_type_line?: string;
+  c1_oracle_text?: string;
+  c1_power?: string;
+  c1_toughness?: string;
+  c1_colors?: string;
+  c1_color_identity?: string;
+  c1_image_uris?: string;
+  c1_layout?: string;
+  c1_card_faces?: string;
+  c1_artist?: string;
+  c1_set_name?: string;
+  c1_card_power?: number;
+  c1_versatility?: number;
+  c1_popularity?: number;
+  c1_salt?: number;
+  c1_price?: number;
+  c1_scryfall_uri?: string;
+  // Commander 2 fields (same pattern)
+  c2_name?: string;
+  c2_mana_cost?: string;
+  c2_type_line?: string;
+  c2_oracle_text?: string;
+  c2_power?: string;
+  c2_toughness?: string;
+  c2_colors?: string;
+  c2_color_identity?: string;
+  c2_image_uris?: string;
+  c2_layout?: string;
+  c2_card_faces?: string;
+  c2_artist?: string;
+  c2_set_name?: string;
+  c2_card_power?: number;
+  c2_versatility?: number;
+  c2_popularity?: number;
+  c2_salt?: number;
+  c2_price?: number;
+  c2_scryfall_uri?: string;
+}

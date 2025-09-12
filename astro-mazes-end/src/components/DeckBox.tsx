@@ -16,7 +16,7 @@ import MetaRow from './MetaRow'
 export type DeckBoxProps = {
   name: string // deck name (linked + gradient)
   tournamentName: string // neutral pill (empty string to hide)
-  tournamentPlayers?: number
+  totalPlayers?: number
   tournamentId?: string
   commanders: DbUICard[] // 1–2 cards from our DB shape
   colors: ColorId[] // explicit colors (derive if empty)
@@ -60,7 +60,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   avgWinRate,
   top8Count,
   deckCount,
-  tournamentPlayers = 0,
+  totalPlayers = 0,
   tournamentId,
   sameCommanderCount = 0,
   standing,
@@ -96,8 +96,8 @@ const DeckBox: React.FC<DeckBoxProps> = ({
   )
 
   // Derived UI metrics
-  const metaShare = tournamentPlayers > 0
-    ? Math.round((sameCommanderCount / tournamentPlayers) * 100)
+  const metaShare = totalPlayers > 0
+    ? Math.round((sameCommanderCount / totalPlayers) * 100)
     : 0
   const showTop8 = (top8Count ?? 0) > 0
   // Modal handles ESC & focus
@@ -197,7 +197,7 @@ const DeckBox: React.FC<DeckBoxProps> = ({
                     <span className='text-neutral-200'>{ordinal(standing)} Place</span>
                   </span>
                 ) : null}
-                {tournamentPlayers ? <span>Players: {tournamentPlayers}</span> : null}
+                {totalPlayers ? <span>Players: {totalPlayers}</span> : null}
                 {lastSeen ? <span>{new Date(lastSeen).toLocaleDateString()}</span> : null}
               </MetaRow>
             </div>

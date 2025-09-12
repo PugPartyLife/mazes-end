@@ -19,7 +19,7 @@ import type {
   DatabaseSummary,
   ParsedImageUris,
   CardUsageData,
-  DeckReference
+  DeckReference,
 } from '../../types'
 
 // Deck type
@@ -572,27 +572,6 @@ function mapCommanderCards(row: any): any[] {
   }
   return out
 }
-
-builder.objectType('DeckBoxData', {
-  fields: (t) => ({
-    deckId: t.string({ resolve: (p) => p.deckId }),
-    tournamentId: t.string({ nullable: true, resolve: (p) => p.tournamentId }),
-    tournamentName: t.string({ nullable: true, resolve: (p) => p.tournamentName }),
-    tournamentPlayers: t.int({ nullable: true, resolve: (p) => p.totalPlayers ?? null }),
-    player: t.string({ resolve: (p) => p.playerName || 'Unknown' }),
-    wins: t.int({ resolve: (p) => Number(p.wins || 0) }),
-    losses: t.int({ resolve: (p) => Number(p.losses || 0) }),
-    draws: t.int({ resolve: (p) => Number(p.draws || 0) }),
-    avgWinRate: t.float({ resolve: (p) => Number(p.winRate || 0) }),
-    standing: t.int({ nullable: true, resolve: (p) => p.standing ?? null }),
-    lastSeen: t.string({ nullable: true, resolve: (p) => p.lastSeen || null }),
-    cardCount: t.int({ resolve: (p) => Number(p.totalCards || 0) }),
-    sameCommanderCount: t.int({ resolve: (p) => Math.max(0, Number(p.same_commander_count || 0)) }),
-    colors: t.field({ type: ['String'], resolve: (p) => parseDeckColorsString(p.deckColors) }),
-    top8Count: t.int({ resolve: (p) => (p.standing != null && p.standing <= 8 ? 1 : 0) }),
-    commanders: t.field({ type: ['Card'], resolve: (p) => mapCommanderCards(p) }),
-  })
-})
 
 builder.objectType('DeckMetaData', {
   fields: (t) => ({

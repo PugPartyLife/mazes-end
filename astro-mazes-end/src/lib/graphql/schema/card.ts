@@ -3,6 +3,69 @@ import { queryDatabase, queryDatabaseSingle, queries } from '../../db/sqlite'
 import { parseColors, parseImageUris, coerceImageObj } from './shared/utils'
 import type { Card, CardUsageData, DeckReference, CardFrequencyChange } from '../../../types'
 
+function parseDeckColors(colors: string | null): string[] {
+  if (!colors) return [];
+  return colors.split('').filter(c => 'WUBRG'.includes(c));
+}
+
+function mapCommanderCards(row: any): any[] {
+  const commanders = [];
+  
+  if (row.c1_name) {
+    commanders.push({
+      id: row.c1_name,
+      card_name: row.c1_name,
+      name: row.c1_name,
+      mana_cost: row.c1_mana_cost,
+      type_line: row.c1_type_line,
+      oracle_text: row.c1_oracle_text,
+      power: row.c1_power,
+      toughness: row.c1_toughness,
+      colors: row.c1_colors,
+      color_identity: row.c1_color_identity,
+      image_uris: row.c1_image_uris,
+      layout: row.c1_layout,
+      card_faces: row.c1_card_faces,
+      artist: row.c1_artist,
+      set_name: row.c1_set_name,
+      card_power: row.c1_card_power,
+      versatility: row.c1_versatility,
+      popularity: row.c1_popularity,
+      salt: row.c1_salt,
+      price: row.c1_price,
+      scryfall_uri: row.c1_scryfall_uri
+    });
+  }
+  
+  if (row.c2_name) {
+    commanders.push({
+      id: row.c2_name,
+      card_name: row.c2_name,
+      name: row.c2_name,
+      mana_cost: row.c2_mana_cost,
+      type_line: row.c2_type_line,
+      oracle_text: row.c2_oracle_text,
+      power: row.c2_power,
+      toughness: row.c2_toughness,
+      colors: row.c2_colors,
+      color_identity: row.c2_color_identity,
+      image_uris: row.c2_image_uris,
+      layout: row.c2_layout,
+      card_faces: row.c2_card_faces,
+      artist: row.c2_artist,
+      set_name: row.c2_set_name,
+      card_power: row.c2_card_power,
+      versatility: row.c2_versatility,
+      popularity: row.c2_popularity,
+      salt: row.c2_salt,
+      price: row.c2_price,
+      scryfall_uri: row.c2_scryfall_uri
+    });
+  }
+  
+  return commanders;
+}
+
 // Card object type
 builder.objectType('Card', {
   fields: (t) => ({
@@ -133,11 +196,56 @@ builder.objectType('CardWithStats', {
   })
 })
 
+builder.objectType('CardUsageWithDetails', {
+  fields: (t) => ({
+    cardName: t.exposeString('cardName'),
+    timesPlayed: t.exposeInt('timesPlayed'),
+    deckBoxes: t.field({
+      type: ['DeckBoxData'],
+      resolve: (parent) => parent.deckBoxes || []
+    }),
+    card: t.field({
+      type: 'Card',
+      nullable: true,
+      resolve: async (parent) => {
+        const results = await queryDatabase<Card>(
+          'SELECT * FROM cards WHERE card_name = ?',
+          [parent.cardName]
+        )
+        return results[0] || null
+      }
+    })
+  })
+})
+
 builder.objectType('DeckInfo', {
   fields: (t) => ({
     deckId: t.exposeString('deckId'),
     deckName: t.exposeString('deckName'),
     commanderName: t.exposeString('commanderName')
+  })
+})
+
+builder.objectType('DeckBoxData', {
+  fields: (t) => ({
+    deckId: t.exposeString('deckId'),
+    tournamentId: t.exposeString('tournamentId'),
+    tournamentName: t.exposeString('tournamentName'),
+    totalPlayers: t.exposeInt('totalPlayers', { nullable: true }),
+    player: t.exposeString('playerName'),
+    wins: t.exposeInt('wins'),
+    losses: t.exposeInt('losses'),
+    draws: t.exposeInt('draws'),
+    winRate: t.exposeFloat('winRate', { nullable: true }),
+    standing: t.exposeInt('standing', { nullable: true }),
+    lastSeen: t.exposeString('lastSeen'),
+    cardCount: t.exposeInt('totalCards'),
+    colors: t.exposeString('deckColors', { nullable: true }),
+    sameCommanderCount: t.exposeInt('same_commander_count'),
+    commanders: t.field({
+      type: ['Card'],
+      resolve: (parent) => mapCommanderCards(parent)
+    })
   })
 })
 
@@ -470,6 +578,181 @@ export const cardQueries = (t: any) => ({
         'SELECT * FROM cards WHERE card_type = ? ORDER BY card_name LIMIT ?',
         [cardType, limit ?? 50]
       )
+    },
+  }),
+
+  cardUsageWithDeckDetails: t.field({
+    type: ['CardUsageWithDetails'],
+    args: {
+      days: t.arg.int({ defaultValue: 30 }),
+      cardName: t.arg.string({ required: false }),
+    },
+    resolve: async (_: any, { days, cardName }: { days: number, cardName?: string }) => {
+      const defaultDays = days ?? 30;
+      const startDate = defaultDays === -1
+        ? '2025-08-01'
+        : new Date(Date.now() - defaultDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      // Single query that gets all data at once
+      const results = await queryDatabase<any>(`
+        WITH card_usage AS (
+          SELECT 
+            dc.card_name,
+            COUNT(*) as times_played,
+            COUNT(DISTINCT dc.deck_id) as unique_decks
+          FROM deck_cards dc
+          JOIN decks d ON dc.deck_id = d.deck_id
+          JOIN tournaments t ON d.tournament_id = t.tournament_id
+          WHERE t.start_date >= ?
+            AND d.has_decklist = 1
+            AND dc.deck_section != 'commander'
+          GROUP BY dc.card_name
+          ORDER BY times_played DESC
+          LIMIT 100
+        )
+        SELECT 
+          cu.card_name,
+          cu.times_played,
+          d.deck_id,
+          d.player_name,
+          d.standing,
+          d.wins,
+          d.losses,
+          d.draws,
+          d.win_rate,
+          d.commander_1,
+          d.commander_2,
+          d.deck_colors,
+          t.tournament_id,
+          t.tournament_name,
+          t.start_date,
+          t.total_players,
+          (SELECT COUNT(*) FROM deck_cards WHERE deck_id = d.deck_id) as card_count,
+          (SELECT COUNT(*) FROM decks d2 WHERE d2.tournament_id = d.tournament_id AND d2.commander_1 = d.commander_1) as same_commander_count,
+          c1.card_name as c1_name,
+          c1.mana_cost as c1_mana_cost,
+          c1.type_line as c1_type_line,
+          c1.oracle_text as c1_oracle_text,
+          c1.power as c1_power,
+          c1.toughness as c1_toughness,
+          c1.colors as c1_colors,
+          c1.color_identity as c1_color_identity,
+          c1.image_uris as c1_image_uris,
+          c1.layout as c1_layout,
+          c1.card_faces as c1_card_faces,
+          c1.artist as c1_artist,
+          c1.set_name as c1_set_name,
+          c1.card_power as c1_card_power,
+          c1.versatility as c1_versatility,
+          c1.popularity as c1_popularity,
+          c1.salt as c1_salt,
+          c1.price as c1_price,
+          c1.scryfall_uri as c1_scryfall_uri,
+          c2.card_name as c2_name,
+          c2.mana_cost as c2_mana_cost,
+          c2.type_line as c2_type_line,
+          c2.oracle_text as c2_oracle_text,
+          c2.power as c2_power,
+          c2.toughness as c2_toughness,
+          c2.colors as c2_colors,
+          c2.color_identity as c2_color_identity,
+          c2.image_uris as c2_image_uris,
+          c2.layout as c2_layout,
+          c2.card_faces as c2_card_faces,
+          c2.artist as c2_artist,
+          c2.set_name as c2_set_name,
+          c2.card_power as c2_card_power,
+          c2.versatility as c2_versatility,
+          c2.popularity as c2_popularity,
+          c2.salt as c2_salt,
+          c2.price as c2_price,
+          c2.scryfall_uri as c2_scryfall_uri
+        FROM card_usage cu
+        JOIN deck_cards dc ON dc.card_name = cu.card_name
+        JOIN decks d ON dc.deck_id = d.deck_id
+        JOIN tournaments t ON d.tournament_id = t.tournament_id
+        LEFT JOIN cards c1 ON d.commander_1 = c1.card_name
+        LEFT JOIN cards c2 ON d.commander_2 = c2.card_name
+        WHERE t.start_date >= ?
+          AND d.has_decklist = 1
+          AND dc.deck_section != 'commander'
+        ORDER BY cu.times_played DESC, t.start_date DESC
+      `, [startDate, startDate]);
+
+      // Group results by card
+      const cardMap = new Map<string, any>();
+      
+      results.forEach(row => {
+        if (!cardMap.has(row.card_name)) {
+          cardMap.set(row.card_name, {
+            cardName: row.card_name,
+            timesPlayed: row.times_played,
+            deckBoxes: []
+          });
+        }
+        
+        const card = cardMap.get(row.card_name);
+        const existingDeck = card.deckBoxes.find((d: any) => d.deckId === row.deck_id);
+        
+        if (!existingDeck && card.deckBoxes.length < 50) {
+          card.deckBoxes.push({
+            deckId: row.deck_id,
+            tournamentId: row.tournament_id,
+            tournamentName: row.tournament_name,
+            totalPlayers: row.total_players,
+            playerName: row.player_name,
+            wins: row.wins,
+            losses: row.losses,
+            draws: row.draws,
+            winRate: row.win_rate,
+            standing: row.standing,
+            lastSeen: row.start_date,
+            totalCards: row.card_count,
+            deckColors: row.deck_colors,
+            same_commander_count: row.same_commander_count,
+            c1_name: row.c1_name,
+            c1_mana_cost: row.c1_mana_cost,
+            c1_type_line: row.c1_type_line,
+            c1_oracle_text: row.c1_oracle_text,
+            c1_power: row.c1_power,
+            c1_toughness: row.c1_toughness,
+            c1_colors: row.c1_colors,
+            c1_color_identity: row.c1_color_identity,
+            c1_image_uris: row.c1_image_uris,
+            c1_layout: row.c1_layout,
+            c1_card_faces: row.c1_card_faces,
+            c1_artist: row.c1_artist,
+            c1_set_name: row.c1_set_name,
+            c1_card_power: row.c1_card_power,
+            c1_versatility: row.c1_versatility,
+            c1_popularity: row.c1_popularity,
+            c1_salt: row.c1_salt,
+            c1_price: row.c1_price,
+            c1_scryfall_uri: row.c1_scryfall_uri,
+            c2_name: row.c2_name,
+            c2_mana_cost: row.c2_mana_cost,
+            c2_type_line: row.c2_type_line,
+            c2_oracle_text: row.c2_oracle_text,
+            c2_power: row.c2_power,
+            c2_toughness: row.c2_toughness,
+            c2_colors: row.c2_colors,
+            c2_color_identity: row.c2_color_identity,
+            c2_image_uris: row.c2_image_uris,
+            c2_layout: row.c2_layout,
+            c2_card_faces: row.c2_card_faces,
+            c2_artist: row.c2_artist,
+            c2_set_name: row.c2_set_name,
+            c2_card_power: row.c2_card_power,
+            c2_versatility: row.c2_versatility,
+            c2_popularity: row.c2_popularity,
+            c2_salt: row.c2_salt,
+            c2_price: row.c2_price,
+            c2_scryfall_uri: row.c2_scryfall_uri
+          });
+        }
+      });
+
+      return Array.from(cardMap.values());
     },
   }),
 })

@@ -2,6 +2,7 @@ import type { ParsedImageUris } from './sqlite_types'
 
 // UI-focused card shape consumed by components (MtgCard, DeckBox, CommanderBox)
 export interface DbUICard {
+  id?: string
   name: string
   mana_cost?: string
   type_line?: string

@@ -23,7 +23,8 @@ import type {
   ParsedImageUris,
   CardUsageData,
   DeckReference,
-  CardFrequencyChange
+  CardFrequencyChange,
+  CardUsageWithDetails
 } from '../../../types'
 
 export const builder = new SchemaBuilder<{
@@ -60,6 +61,7 @@ export const builder = new SchemaBuilder<{
     CardUsage: CardUsageData
     DeckInfo: DeckReference
     CardFrequencyChange: CardFrequencyChange
+    CardUsageWithDetails: CardUsageWithDetails
   }
 }>({
   plugins: [DataloaderPlugin],
