@@ -91,7 +91,7 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
       deckId
       tournamentId
       tournamentName
-      tournamentPlayers
+      totalPlayers
       player
       wins
       losses
@@ -160,7 +160,7 @@ export async function loadTournamentDeckBoxes(tournamentId: string): Promise<Dec
     const deck: DeckBoxProps = {
       name,
       tournamentName: r.tournamentName || '',
-      tournamentPlayers: r.tournamentPlayers ?? undefined,
+      totalPlayers: r.totalPlayers ?? undefined,
       tournamentId: r.tournamentId || undefined,
       colors,
       player: r.player || 'Unknown',
