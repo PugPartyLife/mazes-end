@@ -15,6 +15,7 @@ type InteractiveMtgCardProps = {
   interactive?: boolean
   revealedSections?: Set<string>
   onRevealSection?: (section: string) => void
+  onNameGuess?: (guess: string) => void
 }
 
 /** Colors → hex used for borders/gradients */
@@ -240,7 +241,8 @@ export default function InteractiveMtgCard ({
   chips,
   interactive = false,
   revealedSections = new Set(['image']),
-  onRevealSection = () => {}
+  onRevealSection = () => {},
+  onNameGuess = () => {}
 }: InteractiveMtgCardProps): React.JSX.Element {
   const hasFaces = getFaces(card).length > 1
   const [faceIdx, setFaceIdx] = useState<number>(0)
@@ -338,8 +340,11 @@ export default function InteractiveMtgCard ({
               placeholder="Enter card name..."
               className="font-serif font-bold text-[clamp(0.85rem,2.2vw,1rem)] bg-transparent border-b border-gray-600 text-gray-300 focus:text-white focus:border-yellow-400 outline-none transition-colors flex-1 mr-2"
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && onRevealSection) {
-                  onRevealSection('nameGuess:' + e.currentTarget.value);
+                if (e.key === 'Enter') {
+                  const value = e.currentTarget.value.trim();
+                  if (value) {
+                    onNameGuess(value);
+                  }
                 }
               }}
             />

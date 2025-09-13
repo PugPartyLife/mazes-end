@@ -31,6 +31,9 @@ interface QuizState {
   showAnswer: boolean;
   loading: boolean;
   mode: 'quiz' | 'browse';
+  score: number;
+  showScoreAnimation: boolean;
+  lastCardScore: number;
 }
 
 type RevealSection = 'image' | 'manaCost' | 'typeLine' | 'oracleText' | 'stats' | 'rarity' | 'artist';
@@ -66,10 +69,17 @@ export default function CardQuizComponent() {
     showAnswer: false,
     loading: false,
     mode: 'quiz',
+    score: 0,
+    showScoreAnimation: false,
+    lastCardScore: 0,
   });
 
   const fetchNewCard = async () => {
-    setQuizState(prev => ({ ...prev, loading: true }));
+    setQuizState(prev => ({ 
+      ...prev, 
+      loading: true,
+      showAnswer: false, // Reset showAnswer when fetching new card
+    }));
     
     try {
       const response = await fetch('/api/graphql', {
@@ -102,15 +112,46 @@ export default function CardQuizComponent() {
     }
   };
 
-  useEffect(() => {
-    fetchNewCard();
-  }, []);
+  const handleNameGuess = (guess: string) => {
+    if (!quizState.card) return;
+    
+    // Simple case-insensitive string comparison
+    if (guess.toLowerCase() === quizState.card.card.cardName.toLowerCase()) {
+      // Calculate points earned for this card
+      const hintsUsed = Array.from(quizState.revealedSections).filter(s => s !== 'image' && s !== 'name').length;
+      const pointsEarned = Math.max(0, 20 - (hintsUsed * 3));
+      
+      // Correct guess! Reveal everything
+      setQuizState(prev => ({
+        ...prev,
+        revealedSections: new Set(['image', 'manaCost', 'typeLine', 'oracleText', 'stats', 'rarity', 'artist', 'price', 'name']),
+        score: prev.score + pointsEarned,
+        showScoreAnimation: true,
+        showAnswer: true, // Also show the answer panel
+        lastCardScore: pointsEarned,
+      }));
+      
+      // Hide score animation after 1 second
+      setTimeout(() => {
+        setQuizState(prev => ({ ...prev, showScoreAnimation: false }));
+      }, 1000);
+    }
+  };
 
   const revealSection = (section: RevealSection | string) => {
-    setQuizState(prev => ({
-      ...prev,
-      revealedSections: new Set([...prev.revealedSections, section])
-    }));
+    // Penalty for revealing hints (except art)
+    if (section !== 'image' && quizState.mode === 'quiz') {
+      setQuizState(prev => ({
+        ...prev,
+        revealedSections: new Set([...prev.revealedSections, section]),
+        score: Math.max(0, prev.score - 3) // Deduct 3 points, minimum 0
+      }));
+    } else {
+      setQuizState(prev => ({
+        ...prev,
+        revealedSections: new Set([...prev.revealedSections, section])
+      }));
+    }
   };
 
   const revealAllHints = () => {
@@ -134,10 +175,23 @@ export default function CardQuizComponent() {
     setModeDropdownOpen(false);
   };
 
-  const { card, revealedSections, showAnswer, loading, mode } = quizState;
+  useEffect(() => {
+    fetchNewCard();
+  }, []);
+
+  const { card, revealedSections, showAnswer, loading, mode, score, showScoreAnimation, lastCardScore } = quizState;
 
   return (
-    <section className="py-20 bg-gray-900 min-h-screen">
+    <section className="py-20 bg-gray-900 min-h-screen relative">
+      {/* Score Animation */}
+      {showScoreAnimation && (
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
+          <div className="text-6xl font-bold text-yellow-400 animate-ping">
+            +{lastCardScore}
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
@@ -147,6 +201,11 @@ export default function CardQuizComponent() {
           <p className="text-gray-400 max-w-2xl mx-auto">
             Can you identify the Magic card from its artwork and hints?
           </p>
+          {mode === 'quiz' && (
+            <div className="mt-4 text-2xl font-bold text-yellow-400">
+              Score: {score}
+            </div>
+          )}
         </div>
 
         {/* Controls */}
@@ -221,6 +280,18 @@ export default function CardQuizComponent() {
               <h3 className="text-lg font-semibold text-white mb-6 text-center">
                 <HelpCircle className="inline w-5 h-5 mr-2" />
                 Guess the Card
+                {mode === 'quiz' && (
+                  <span className="ml-4 text-base font-normal">
+                    <span className="text-gray-400">Potential: </span>
+                    <span className={`font-bold ${
+                      Math.max(0, 20 - (Array.from(revealedSections).filter(s => s !== 'image' && s !== 'name').length * 3)) >= 20 ? 'text-green-400' : 
+                      Math.max(0, 20 - (Array.from(revealedSections).filter(s => s !== 'image' && s !== 'name').length * 3)) > 0 ? 'text-yellow-400' : 
+                      'text-red-400'
+                    }`}>
+                      {Math.max(0, 20 - (Array.from(revealedSections).filter(s => s !== 'image' && s !== 'name').length * 3))}/20
+                    </span>
+                  </span>
+                )}
               </h3>
               
               <div className="grid md:grid-cols-2 gap-6">
@@ -233,6 +304,7 @@ export default function CardQuizComponent() {
                         interactive={mode === 'quiz'}
                         revealedSections={revealedSections}
                         onRevealSection={revealSection}
+                        onNameGuess={handleNameGuess}
                       />
                     </div>
                   ) : (
@@ -264,38 +336,47 @@ export default function CardQuizComponent() {
                         <button
                           onClick={() => revealSection('manaCost')}
                           disabled={revealedSections.has('manaCost')}
-                          className={`px-3 py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors ${
+                          className={`px-3 py-2 rounded text-sm flex flex-col items-center justify-center gap-1 transition-colors ${
                             revealedSections.has('manaCost') 
                               ? 'bg-gray-800 text-gray-600 cursor-not-allowed' 
                               : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
                           }`}
                         >
-                          <Eye className="w-3 h-3" />
-                          Mana Cost
+                          <div className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            Mana Cost
+                          </div>
+                          <span className="text-xs text-red-400">-3 pts</span>
                         </button>
                         <button
                           onClick={() => revealSection('typeLine')}
                           disabled={revealedSections.has('typeLine')}
-                          className={`px-3 py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors ${
+                          className={`px-3 py-2 rounded text-sm flex flex-col items-center justify-center gap-1 transition-colors ${
                             revealedSections.has('typeLine') 
                               ? 'bg-gray-800 text-gray-600 cursor-not-allowed' 
                               : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
                           }`}
                         >
-                          <Eye className="w-3 h-3" />
-                          Type
+                          <div className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            Type
+                          </div>
+                          <span className="text-xs text-red-400">-3 pts</span>
                         </button>
                         <button
                           onClick={() => revealSection('oracleText')}
                           disabled={revealedSections.has('oracleText')}
-                          className={`px-3 py-2 rounded text-sm flex items-center justify-center gap-2 transition-colors ${
+                          className={`px-3 py-2 rounded text-sm flex flex-col items-center justify-center gap-1 transition-colors ${
                             revealedSections.has('oracleText') 
                               ? 'bg-gray-800 text-gray-600 cursor-not-allowed' 
                               : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
                           }`}
                         >
-                          <Eye className="w-3 h-3" />
-                          Oracle Text
+                          <div className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            Oracle Text
+                          </div>
+                          <span className="text-xs text-red-400">-3 pts</span>
                         </button>
                       </div>
                     </div>
@@ -313,7 +394,10 @@ export default function CardQuizComponent() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-400">Rarity & Set</span>
-                            <EyeOff className="w-4 h-4 text-gray-500" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-red-400">-3 pts</span>
+                              <EyeOff className="w-4 h-4 text-gray-500" />
+                            </div>
                           </div>
                         </button>
                       ) : (
@@ -343,7 +427,10 @@ export default function CardQuizComponent() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-400">Price</span>
-                            <EyeOff className="w-4 h-4 text-gray-500" />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-red-400">-3 pts</span>
+                              <EyeOff className="w-4 h-4 text-gray-500" />
+                            </div>
                           </div>
                         </button>
                       ) : (
@@ -377,7 +464,8 @@ export default function CardQuizComponent() {
                             showAnswer: !prev.showAnswer,
                             revealedSections: prev.showAnswer 
                               ? prev.revealedSections 
-                              : new Set([...prev.revealedSections, 'name'])
+                              : new Set([...prev.revealedSections, 'name']),
+                            lastCardScore: 0 // No points for revealing answer
                           }));
                         }}
                         className="w-full px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-gray-900 rounded font-medium flex items-center justify-center gap-2 transition-colors"
@@ -385,6 +473,17 @@ export default function CardQuizComponent() {
                         <HelpCircle className="w-4 h-4" />
                         {showAnswer ? 'Hide' : 'Reveal'} Answer
                       </button>
+                      
+                      {/* Next Card Button - shows when answer is revealed */}
+                      {showAnswer && (
+                        <button
+                          onClick={fetchNewCard}
+                          className="w-full px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded font-medium flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Next Card
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -397,6 +496,16 @@ export default function CardQuizComponent() {
                 <h3 className="text-lg font-semibold text-yellow-400 mb-4">The Card Is...</h3>
                 <div className="space-y-3">
                   <div className="text-2xl font-bold text-white">{card.card.cardName}</div>
+                  
+                  {/* Points Earned */}
+                  {mode === 'quiz' && (
+                    <div className="text-lg">
+                      <span className="text-gray-400">Points earned: </span>
+                      <span className={`font-bold ${lastCardScore >= 20 ? 'text-green-400' : lastCardScore > 0 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {lastCardScore}/20
+                      </span>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
                     <div>
