@@ -139,19 +139,30 @@ export default function CardQuizComponent() {
   };
 
   const revealSection = (section: RevealSection | string) => {
-    // Penalty for revealing hints (except art)
-    if (section !== 'image' && quizState.mode === 'quiz') {
-      setQuizState(prev => ({
-        ...prev,
-        revealedSections: new Set([...prev.revealedSections, section]),
-        score: Math.max(0, prev.score - 3) // Deduct 3 points, minimum 0
-      }));
-    } else {
-      setQuizState(prev => ({
-        ...prev,
-        revealedSections: new Set([...prev.revealedSections, section])
-      }));
-    }
+    // Define point deductions for each section
+        const pointDeductions: Record<string, number> = {
+            'manaCost': 2,
+            'typeLine': 2,
+            'oracleText': 3,
+            'stats': 1,
+            'rarity': 1,
+            // 'image', 'price', 'artist' no deduction
+        };
+
+        // Apply penalty for revealing hints in quiz mode
+        if (quizState.mode === 'quiz' && pointDeductions[section]) {
+            const deduction = pointDeductions[section];
+            setQuizState(prev => ({
+            ...prev,
+            revealedSections: new Set([...prev.revealedSections, section]),
+            score: Math.max(0, prev.score - deduction) // Deduct points, minimum 0
+            }));
+        } else {
+            setQuizState(prev => ({
+            ...prev,
+            revealedSections: new Set([...prev.revealedSections, section])
+            }));
+        }
   };
 
   const revealAllHints = () => {
@@ -346,7 +357,7 @@ export default function CardQuizComponent() {
                             <Eye className="w-3 h-3" />
                             Mana Cost
                           </div>
-                          <span className="text-xs text-red-400">-3 pts</span>
+                          <span className="text-xs text-red-400">-2 pts</span>
                         </button>
                         <button
                           onClick={() => revealSection('typeLine')}
@@ -361,7 +372,7 @@ export default function CardQuizComponent() {
                             <Eye className="w-3 h-3" />
                             Type
                           </div>
-                          <span className="text-xs text-red-400">-3 pts</span>
+                          <span className="text-xs text-red-400">-2 pts</span>
                         </button>
                         <button
                           onClick={() => revealSection('oracleText')}
@@ -395,7 +406,7 @@ export default function CardQuizComponent() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-400">Rarity & Set</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-red-400">-3 pts</span>
+                              <span className="text-xs text-red-400">-1 pts</span>
                               <EyeOff className="w-4 h-4 text-gray-500" />
                             </div>
                           </div>
@@ -428,7 +439,6 @@ export default function CardQuizComponent() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-400">Price</span>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-red-400">-3 pts</span>
                               <EyeOff className="w-4 h-4 text-gray-500" />
                             </div>
                           </div>
