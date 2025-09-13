@@ -581,6 +581,29 @@ export const cardQueries = (t: any) => ({
     },
   }),
 
+  randomCards: t.field({
+    type: ['Card'],
+    args: {
+      count: t.arg.int({ defaultValue: 1 }),
+      excludeBasicLands: t.arg.boolean({ defaultValue: true }),
+    },
+    resolve: async (_: any, { count, excludeBasicLands }: { count: number, excludeBasicLands: boolean }) => {
+      const excludeClause = excludeBasicLands 
+        ? `AND card_name NOT IN ('Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 
+          'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp', 
+          'Snow-Covered Mountain', 'Snow-Covered Forest', 'Wastes')` 
+        : '';
+      
+      return queryDatabase<Card>(
+        `SELECT * FROM cards 
+        WHERE 1=1 ${excludeClause}
+        ORDER BY RANDOM() 
+        LIMIT ?`,
+        [count]
+      );
+    },
+  }),
+
   cardUsageWithDeckDetails: t.field({
     type: ['CardUsageWithDetails'],
     args: {

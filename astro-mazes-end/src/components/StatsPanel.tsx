@@ -56,7 +56,7 @@ export default function StatsPanel() {
         ) : activeTab === 'cards' ? (
           <CardStatsPanel />
         ) : activeTab === 'tournaments' ? (
-          <CardTrendsPanel />
+          <TournamentStatsPanel />
         ) : null}
       </div>
     </section>
