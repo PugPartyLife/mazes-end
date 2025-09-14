@@ -43,6 +43,7 @@ const getRandomCardsQuery = (count: number = 1) => `
   query GetRandomCards {
     randomCards(count: ${count}, excludeBasicLands: true) {
       cardName
+      cardFaces
       manaCost
       typeLine
       oracleText
@@ -56,6 +57,20 @@ const getRandomCardsQuery = (count: number = 1) => `
       imageUris {
         artCrop
         normal
+        png
+        small
+        face0ArtCrop
+        face0BorderCrop
+        face0Large
+        face0Normal
+        face0Png
+        face0Small
+        face1ArtCrop
+        face1BorderCrop
+        face1Large
+        face1Normal
+        face1Png
+        face1Small
       }
     }
   }
@@ -91,6 +106,8 @@ export default function CardQuizComponent() {
       });
       
       const { data } = await response.json();
+
+      console.log(data);
       
       if (data?.randomCards?.[0]) {
         const card = data.randomCards[0];
@@ -413,6 +430,7 @@ export default function CardQuizComponent() {
                         </button>
                       ) : (
                         revealedSections.has('rarity') && (
+                          card.card.rarity && card.card.setName && (
                           <div className="p-3 bg-gray-700 rounded">
                             <p className="text-xs text-gray-400 mb-1">Rarity & Set</p>
                             <p>
@@ -427,7 +445,7 @@ export default function CardQuizComponent() {
                               <span className="text-gray-400"> • {card.card.setName}</span>
                             </p>
                           </div>
-                        )
+                        ))
                       )}
 
                       {/* Price */}

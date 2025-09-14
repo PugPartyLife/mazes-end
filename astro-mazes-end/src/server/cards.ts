@@ -92,12 +92,12 @@ export async function loadCardsWithStats(limit = 24, offset = 0, q?: string): Pr
       score
       card {
         cardName
+        cardFaces
         manaCost
         typeLine
         oracleText
         power
         toughness
-        cardFaces
         colors
         colorIdentity
         imageUris {

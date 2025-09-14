@@ -52,10 +52,20 @@ function parseJsonMaybe<T = any> (value: any): T | undefined {
   return value as T
 }
 
+function parseFaces(value: string | null | undefined): any[] | undefined {
+  if (!value) return undefined
+  try {
+    const arr = JSON.parse(value)
+    return Array.isArray(arr) ? arr : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function getFaces (card: DbUICard): any[] {
   // Prefer explicit faces if present
   if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
-  const parsed = parseJsonMaybe<any[]>(card?.card_faces)
+  const parsed = parseFaces(card?.card_faces as string | null | undefined)
   if (Array.isArray(parsed)) return parsed
 
   // Fallback: infer dual faces from flattened image_uris or split name or layout

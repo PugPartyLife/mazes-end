@@ -55,6 +55,7 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
           name
           combosCount
           cardData {
+            cardFaces
             cardName
             manaCost
             typeLine
@@ -72,6 +73,20 @@ const getRandomCombosQuery = (maxCards: number, count: number = 1) => `
             imageUris {
               artCrop
               normal
+              png
+              small
+              face0ArtCrop
+              face0BorderCrop
+              face0Large
+              face0Normal
+              face0Png
+              face0Small
+              face1ArtCrop
+              face1BorderCrop
+              face1Large
+              face1Normal
+              face1Png
+              face1Small
             }
           }
         }

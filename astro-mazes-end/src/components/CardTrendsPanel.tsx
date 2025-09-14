@@ -109,8 +109,22 @@ export default function CardTrendsPanel() {
                   significanceScore
                   card {
                     imageUris {
-                      small
+                      artCrop
                       normal
+                      png
+                      small
+                      face0ArtCrop
+                      face0BorderCrop
+                      face0Large
+                      face0Normal
+                      face0Png
+                      face0Small
+                      face1ArtCrop
+                      face1BorderCrop
+                      face1Large
+                      face1Normal
+                      face1Png
+                      face1Small
                     }
                     manaCost
                     typeLine
@@ -140,8 +154,22 @@ export default function CardTrendsPanel() {
                   significanceScore
                   card {
                     imageUris {
-                      small
+                      artCrop
                       normal
+                      png
+                      small
+                      face0ArtCrop
+                      face0BorderCrop
+                      face0Large
+                      face0Normal
+                      face0Png
+                      face0Small
+                      face1ArtCrop
+                      face1BorderCrop
+                      face1Large
+                      face1Normal
+                      face1Png
+                      face1Small
                     }
                     manaCost
                     typeLine
