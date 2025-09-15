@@ -64,9 +64,22 @@ function parseFaces(value: string | null | undefined): any[] | undefined {
 
 function getFaces (card: DbUICard): any[] {
   // Prefer explicit faces if present
-  if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
-  const parsed = parseFaces(card?.card_faces as string | null | undefined)
+  //if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
+  const parsed = parseJsonMaybe<Array<DbUICard>>(card?.card_faces)
+//  console.log(typeof parsed);
+  if (Array.isArray(parsed)){
+    console.log('card.card_faces is array');
+  }
+  if (typeof parsed === 'string'){
+    const decodeFaces = JSON.parse(parsed);
+    console.log('card.card_faces is string, parsed:', decodeFaces);
+    return decodeFaces;
+  }
+  if (parsed && parsed[0] && Array.isArray(parsed[0].colors)){
+    console.log('card.card_faces has colors:', parsed[0].colors);
+  }
   if (Array.isArray(parsed)) return parsed
+  console.log('No explicit faces, checking fallbacks...');
 
   // Fallback: infer dual faces from flattened image_uris or split name or layout
   const uris = parseJsonMaybe<any>(card?.image_uris)

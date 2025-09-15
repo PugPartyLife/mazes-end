@@ -42,16 +42,34 @@ function identityColors (card: DbUICard): string[] {
 function parseJsonMaybe<T = any> (value: any): T | undefined {
   if (!value) return undefined
   if (typeof value === 'string') {
-    try { return JSON.parse(value) as T } catch { return undefined }
+    console.log('Parsing JSON string:', value);
+    try {
+      return JSON.parse(value) as T
+    } catch {
+      return undefined
+    }
   }
   return value as T
 }
 
 function getFaces (card: DbUICard): any[] {
   // Prefer explicit faces if present
-  if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
-  const parsed = parseJsonMaybe<any[]>(card?.card_faces)
+  //if (Array.isArray(card?.card_faces)) return card.card_faces as any[]
+  const parsed = parseJsonMaybe<Array<DbUICard>>(card?.card_faces)
+//  console.log(typeof parsed);
+  if (Array.isArray(parsed)){
+    console.log('card.card_faces is array');
+  }
+  if (typeof parsed === 'string'){
+    const decodeFaces = JSON.parse(parsed);
+    console.log('card.card_faces is string, parsed:', decodeFaces);
+    return decodeFaces;
+  }
+  if (parsed && parsed[0] && Array.isArray(parsed[0].colors)){
+    console.log('card.card_faces has colors:', parsed[0].colors);
+  }
   if (Array.isArray(parsed)) return parsed
+  console.log('No explicit faces, checking fallbacks...');
 
   // Fallback: infer dual faces from flattened image_uris or split name or layout
   const uris = parseJsonMaybe<any>(card?.image_uris)
@@ -104,11 +122,28 @@ function fromFace<T = any> (
   key: string,
   fallback: T = '' as T
 ): T {
-  const faces = getFaces(card)
-  const f = faces[faceIdx ?? 0]
-  if (f?.[key] != null) return f[key] as T
-  if ((card as any)?.[key] != null) return (card as any)[key] as T
-  return fallback
+  const faces = getFaces(card);
+
+  console.log({ card, faces, faceIdx, key });
+  
+  // For multi-faced cards, ONLY use face data, never fall back to card level
+  if (faces.length > 1 && faceIdx !== undefined && faceIdx < faces.length) {
+    const face = faces[faceIdx];
+    if (face && face[key] !== undefined) {
+      return face[key] as T;
+    }
+    // For multi-faced cards, use fallback instead of card-level data
+    return fallback;
+  }
+  
+  // For single-faced cards (or when no faces), use card-level data
+  if (faces.length <= 1) {
+    if (card && (card as any)[key] !== undefined) {
+      return (card as any)[key] as T;
+    }
+  }
+  
+  return fallback;
 }
 
 /** Border class for mono / colorless; multicolor uses style() */
@@ -224,6 +259,14 @@ export default function MtgCard ({
   const loyalty = fromFace<string>(card, faceIdx, 'loyalty', '')
   const artSrc = getArt(card, faceIdx)
   const setName: string = card?.set_name || ''
+
+  //console.log('Face data:', {
+  //  faceIdx,
+  //  name,
+  //  typeLine,
+  //  oracleText,
+  //  currentFace: getFaces(card)[faceIdx]
+  //})
 
   // Resolve set info (code + set icon) from local list
   const setInfo = useMemo(() => {
