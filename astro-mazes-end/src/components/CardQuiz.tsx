@@ -96,36 +96,48 @@ export default function CardQuizComponent() {
       showAnswer: false, // Reset showAnswer when fetching new card
     }));
     
-    try {
-      const response = await fetch('/api/graphql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          query: getRandomCardsQuery(1) 
-        })
-      });
-      
-      const { data } = await response.json();
+    let foundCardWithOracleText = false;
 
-      console.log(data);
-      
-      if (data?.randomCards?.[0]) {
-        const card = data.randomCards[0];
-        const initialRevealedSections = quizState.mode === 'browse' 
-          ? new Set<string>(['image', 'manaCost', 'typeLine', 'oracleText', 'stats', 'rarity', 'artist', 'price', 'name'])
-          : new Set<string>([]);
+    while (!foundCardWithOracleText) {
+      try {
+        const response = await fetch('/api/graphql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            query: getRandomCardsQuery(1) 
+          })
+        });
+        
+        const { data } = await response.json();
+
+        console.log(data);
+        
+        if (data?.randomCards?.[0]) {
+          const card = data.randomCards[0];
           
-        setQuizState(prev => ({
-          ...prev,
-          card: { card },
-          revealedSections: initialRevealedSections,
-          showAnswer: prev.mode === 'browse',
-          loading: false,
-        }));
+          // Check if the card has oracleText
+          if (card.oracleText) {
+            foundCardWithOracleText = true;
+            
+            const initialRevealedSections = quizState.mode === 'browse' 
+              ? new Set<string>(['image', 'manaCost', 'typeLine', 'oracleText', 'stats', 'rarity', 'artist', 'price', 'name'])
+              : new Set<string>([]);
+              
+            setQuizState(prev => ({
+              ...prev,
+              card: { card },
+              revealedSections: initialRevealedSections,
+              showAnswer: prev.mode === 'browse',
+              loading: false,
+            }));
+          }
+          // If no oracleText, the loop will continue
+        }
+      } catch (error) {
+        console.error('Failed to fetch card:', error);
+        setQuizState(prev => ({ ...prev, loading: false }));
+        break; // Exit the loop on error to avoid infinite loop
       }
-    } catch (error) {
-      console.error('Failed to fetch card:', error);
-      setQuizState(prev => ({ ...prev, loading: false }));
     }
   };
 
