@@ -25,12 +25,15 @@ interface CardQuizData {
   };
 }
 
+type DifficultyLevel = 'staples' | 'playable' | 'unrestricted';
+
 interface QuizState {
   card: CardQuizData | null;
   revealedSections: Set<string>;
   showAnswer: boolean;
   loading: boolean;
   mode: 'quiz' | 'browse';
+  difficulty: DifficultyLevel;
   score: number;
   showScoreAnimation: boolean;
   lastCardScore: number;
@@ -38,10 +41,10 @@ interface QuizState {
 
 type RevealSection = 'image' | 'manaCost' | 'typeLine' | 'oracleText' | 'stats' | 'rarity' | 'artist';
 
-// GraphQL query for random cards
-const getRandomCardsQuery = (count: number = 1) => `
+// GraphQL query for random cards with difficulty parameter
+const getRandomCardsQuery = (count: number = 1, days: number = 60, minPlays: number = 100) => `
   query GetRandomCards {
-    randomCards(count: ${count}, excludeBasicLands: true) {
+    randomCards(count: ${count}, excludeBasicLands: true, days: ${days}, minPlays: ${minPlays}) {
       cardName
       cardFaces
       manaCost
@@ -76,14 +79,23 @@ const getRandomCardsQuery = (count: number = 1) => `
   }
 `;
 
+// Difficulty settings
+const DIFFICULTY_SETTINGS: Record<DifficultyLevel, { minPlays: number; label: string; color: string }> = {
+  staples: { minPlays: 200, label: 'Staples', color: 'text-green-400' },
+  playable: { minPlays: 50, label: 'Playable', color: 'text-yellow-400' },
+  unrestricted: { minPlays: 1, label: 'Unrestricted', color: 'text-red-400' },
+};
+
 export default function CardQuizComponent() {
   const [modeDropdownOpen, setModeDropdownOpen] = useState(false);
+  const [difficultyDropdownOpen, setDifficultyDropdownOpen] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
     card: null,
     revealedSections: new Set([]), // Start with nothing revealed in quiz mode
     showAnswer: false,
     loading: false,
     mode: 'quiz',
+    difficulty: 'staples',
     score: 0,
     showScoreAnimation: false,
     lastCardScore: 0,
@@ -97,6 +109,7 @@ export default function CardQuizComponent() {
     }));
     
     let foundCardWithOracleText = false;
+    const minPlays = DIFFICULTY_SETTINGS[quizState.difficulty].minPlays;
 
     while (!foundCardWithOracleText) {
       try {
@@ -104,7 +117,7 @@ export default function CardQuizComponent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            query: getRandomCardsQuery(1) 
+            query: getRandomCardsQuery(1, 60, minPlays) 
           })
         });
         
@@ -215,11 +228,21 @@ export default function CardQuizComponent() {
     setModeDropdownOpen(false);
   };
 
+  const switchDifficulty = (newDifficulty: DifficultyLevel) => {
+    setQuizState(prev => ({
+      ...prev,
+      difficulty: newDifficulty,
+    }));
+    setDifficultyDropdownOpen(false);
+    // Fetch a new card with the new difficulty
+    fetchNewCard();
+  };
+
   useEffect(() => {
     fetchNewCard();
   }, []);
 
-  const { card, revealedSections, showAnswer, loading, mode, score, showScoreAnimation, lastCardScore } = quizState;
+  const { card, revealedSections, showAnswer, loading, mode, difficulty, score, showScoreAnimation, lastCardScore } = quizState;
 
   return (
     <section className="py-20 bg-gray-900 min-h-screen relative">
@@ -293,6 +316,50 @@ export default function CardQuizComponent() {
               </div>
             )}
           </div>
+
+          {/* Difficulty Selector - Only show in quiz mode */}
+          {mode === 'quiz' && (
+            <div className="relative">
+              <button
+                onClick={() => setDifficultyDropdownOpen(!difficultyDropdownOpen)}
+                className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 flex items-center gap-2 border border-gray-700"
+              >
+                <span className={DIFFICULTY_SETTINGS[difficulty].color}>
+                  {DIFFICULTY_SETTINGS[difficulty].label}
+                </span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${difficultyDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {difficultyDropdownOpen && (
+                <div className="absolute top-full mt-2 left-0 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                  <button
+                    onClick={() => switchDifficulty('staples')}
+                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-t-lg ${
+                      difficulty === 'staples' ? 'bg-gray-700 text-green-400' : 'text-gray-300'
+                    }`}
+                  >
+                    Staples
+                  </button>
+                  <button
+                    onClick={() => switchDifficulty('playable')}
+                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 ${
+                      difficulty === 'playable' ? 'bg-gray-700 text-yellow-400' : 'text-gray-300'
+                    }`}
+                  >
+                    Playable
+                  </button>
+                  <button
+                    onClick={() => switchDifficulty('unrestricted')}
+                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-b-lg ${
+                      difficulty === 'unrestricted' ? 'bg-gray-700 text-red-400' : 'text-gray-300'
+                    }`}
+                  >
+                    Unrestricted
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={fetchNewCard}

@@ -586,20 +586,71 @@ export const cardQueries = (t: any) => ({
     args: {
       count: t.arg.int({ defaultValue: 1 }),
       excludeBasicLands: t.arg.boolean({ defaultValue: true }),
+      minPlays: t.arg.int({ required: false }),
+      maxPlays: t.arg.int({ required: false }),
+      days: t.arg.int({ defaultValue: 30 }),
     },
-    resolve: async (_: any, { count, excludeBasicLands }: { count: number, excludeBasicLands: boolean }) => {
+    resolve: async (_: any, { count, excludeBasicLands, minPlays, maxPlays, days }: { 
+      count: number, 
+      excludeBasicLands: boolean,
+      minPlays?: number,
+      maxPlays?: number,
+      days: number
+    }) => {
       const excludeClause = excludeBasicLands 
-        ? `AND card_name NOT IN ('Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 
+        ? `AND c.card_name NOT IN ('Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 
           'Snow-Covered Plains', 'Snow-Covered Island', 'Snow-Covered Swamp', 
           'Snow-Covered Mountain', 'Snow-Covered Forest', 'Wastes')` 
         : '';
       
+      // Calculate start date for play count filtering
+      const startDate = days === -1
+        ? '2025-08-01'
+        : new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      // Build play count filtering
+      let playCountJoin = '';
+      let playCountWhere = '';
+      const params: any[] = [];
+      
+      if (minPlays !== undefined || maxPlays !== undefined) {
+        playCountJoin = `
+          LEFT JOIN (
+            SELECT dc.card_name, COUNT(*) as play_count
+            FROM deck_cards dc
+            JOIN decks d ON dc.deck_id = d.deck_id
+            JOIN tournaments t ON d.tournament_id = t.tournament_id
+            WHERE t.start_date >= ?
+              AND d.has_decklist = 1
+              AND dc.deck_section != 'commander'
+            GROUP BY dc.card_name
+          ) pc ON c.card_name = pc.card_name
+        `;
+        params.push(startDate);
+        
+        if (minPlays !== undefined && maxPlays !== undefined) {
+          playCountWhere = `AND COALESCE(pc.play_count, 0) >= ? AND COALESCE(pc.play_count, 0) <= ?`;
+          params.push(minPlays, maxPlays);
+        } else if (minPlays !== undefined) {
+          playCountWhere = `AND COALESCE(pc.play_count, 0) >= ?`;
+          params.push(minPlays);
+        } else if (maxPlays !== undefined) {
+          playCountWhere = `AND COALESCE(pc.play_count, 0) <= ?`;
+          params.push(maxPlays);
+        }
+      }
+      
+      params.push(count);
+      
       return queryDatabase<Card>(
-        `SELECT * FROM cards 
-        WHERE 1=1 ${excludeClause}
+        `SELECT c.* FROM cards c
+        ${playCountJoin}
+        WHERE 1=1 
+        ${excludeClause}
+        ${playCountWhere}
         ORDER BY RANDOM() 
         LIMIT ?`,
-        [count]
+        params
       );
     },
   }),

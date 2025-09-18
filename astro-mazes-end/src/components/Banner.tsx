@@ -131,7 +131,7 @@ export default function Banner() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-4">
             {/*<CtaButton buttonText="Get Started!" buttonHref="/tour" arrowRight={true} /> */}
             <CtaButton buttonText="Stats and Trends" buttonHref="/stats" arrowRight={true} />
-            <CtaButton buttonText="Card and Combo Quiz" buttonHref="/combo-quiz" arrowRight={true} />
+            <CtaButton buttonText="Card Quiz" buttonHref="/card-quiz" arrowRight={true} />
             <CtaButton buttonText="Learn EDH" buttonHref="https://mtgcommander.net/index.php/rules/" arrowRight={true} />
           </div>
 
