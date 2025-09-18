@@ -1,6 +1,6 @@
 import InteractiveMtgCard from './InteractiveMtgCard';
 import { mapGraphQLCardToUi } from '../server/cardRowToUi';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Loader2, ChevronDown, Eye, EyeOff, Brain, Layers, X, HelpCircle } from 'lucide-react';
 import ManaText from './ManaText';
 
@@ -37,53 +37,85 @@ interface QuizState {
   score: number;
   showScoreAnimation: boolean;
   lastCardScore: number;
+  shownCards: Set<string>; // Track shown card names
 }
 
 type RevealSection = 'image' | 'manaCost' | 'typeLine' | 'oracleText' | 'stats' | 'rarity' | 'artist';
 
 // GraphQL query for random cards with difficulty parameter
-const getRandomCardsQuery = (count: number = 1, days: number = 60, minPlays: number = 100) => `
-  query GetRandomCards {
-    randomCards(count: ${count}, excludeBasicLands: true, days: ${days}, minPlays: ${minPlays}) {
-      cardName
-      cardFaces
-      manaCost
-      typeLine
-      oracleText
-      power
-      toughness
-      priceUsd
-      colorIdentity
-      rarity
-      setName
-      artist
-      imageUris {
-        artCrop
-        normal
-        png
-        small
-        face0ArtCrop
-        face0BorderCrop
-        face0Large
-        face0Normal
-        face0Png
-        face0Small
-        face1ArtCrop
-        face1BorderCrop
-        face1Large
-        face1Normal
-        face1Png
-        face1Small
+const getRandomCardsQuery = (count: number = 1, days: number = -1, minPlays?: number, maxPlays?: number) => {
+  let playConstraints = '';
+  if (minPlays !== undefined && maxPlays !== undefined) {
+    playConstraints = `, minPlays: ${minPlays}, maxPlays: ${maxPlays}`;
+  } else if (minPlays !== undefined) {
+    playConstraints = `, minPlays: ${minPlays}`;
+  }
+
+  return `
+    query GetRandomCards {
+      randomCards(count: ${count}, excludeBasicLands: true, days: ${days}${playConstraints}) {
+        cardName
+        cardFaces
+        manaCost
+        typeLine
+        oracleText
+        power
+        toughness
+        priceUsd
+        colorIdentity
+        rarity
+        setName
+        artist
+        imageUris {
+          artCrop
+          normal
+          png
+          small
+          face0ArtCrop
+          face0BorderCrop
+          face0Large
+          face0Normal
+          face0Png
+          face0Small
+          face1ArtCrop
+          face1BorderCrop
+          face1Large
+          face1Normal
+          face1Png
+          face1Small
+        }
       }
     }
-  }
-`;
+  `;
+};
 
-// Difficulty settings
-const DIFFICULTY_SETTINGS: Record<DifficultyLevel, { minPlays: number; label: string; color: string }> = {
-  staples: { minPlays: 200, label: 'Staples', color: 'text-green-400' },
-  playable: { minPlays: 50, label: 'Playable', color: 'text-yellow-400' },
-  unrestricted: { minPlays: 1, label: 'Unrestricted', color: 'text-red-400' },
+// Difficulty settings with tooltips
+const DIFFICULTY_SETTINGS: Record<DifficultyLevel, { 
+  minPlays?: number; 
+  maxPlays?: number; 
+  label: string; 
+  color: string;
+  tooltip: string;
+}> = {
+  staples: { 
+    minPlays: 50, 
+    label: 'Staples', 
+    color: 'text-green-400',
+    tooltip: 'Cards played in 200+ decks all time'
+  },
+  playable: {
+    minPlays: 50,
+    label: 'Playable',
+    color: 'text-yellow-400',
+    tooltip: 'Cards played in 50+ decks all time'
+  },
+  unrestricted: { 
+    minPlays: undefined,
+    maxPlays: undefined,
+    label: 'Unrestricted', 
+    color: 'text-red-400',
+    tooltip: 'Any card from the database'
+  },
 };
 
 export default function CardQuizComponent() {
@@ -99,6 +131,7 @@ export default function CardQuizComponent() {
     score: 0,
     showScoreAnimation: false,
     lastCardScore: 0,
+    shownCards: new Set<string>(),
   });
 
   const fetchNewCard = async () => {
@@ -109,15 +142,19 @@ export default function CardQuizComponent() {
     }));
     
     let foundCardWithOracleText = false;
-    const minPlays = DIFFICULTY_SETTINGS[quizState.difficulty].minPlays;
+    const settings = DIFFICULTY_SETTINGS[quizState.difficulty];
+    let attempts = 0;
+    const maxAttempts = 50; // Prevent infinite loops
 
-    while (!foundCardWithOracleText) {
+    while (!foundCardWithOracleText && attempts < maxAttempts) {
+      attempts++;
+      
       try {
         const response = await fetch('/api/graphql', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            query: getRandomCardsQuery(1, 60, minPlays) 
+            query: getRandomCardsQuery(1, -1, settings.minPlays, settings.maxPlays) 
           })
         });
         
@@ -128,8 +165,8 @@ export default function CardQuizComponent() {
         if (data?.randomCards?.[0]) {
           const card = data.randomCards[0];
           
-          // Check if the card has oracleText
-          if (card.oracleText) {
+          // Check if the card has oracleText AND we haven't shown it before
+          if (card.oracleText && !quizState.shownCards.has(card.cardName)) {
             foundCardWithOracleText = true;
             
             const initialRevealedSections = quizState.mode === 'browse' 
@@ -142,15 +179,22 @@ export default function CardQuizComponent() {
               revealedSections: initialRevealedSections,
               showAnswer: prev.mode === 'browse',
               loading: false,
+              shownCards: new Set([...prev.shownCards, card.cardName]), // Add to shown cards
             }));
           }
-          // If no oracleText, the loop will continue
+          // If no oracleText or already shown, the loop will continue
         }
       } catch (error) {
         console.error('Failed to fetch card:', error);
         setQuizState(prev => ({ ...prev, loading: false }));
         break; // Exit the loop on error to avoid infinite loop
       }
+    }
+
+    // If we've exhausted attempts, show a message
+    if (attempts >= maxAttempts) {
+      console.log('Max attempts reached. Consider resetting shown cards.');
+      // Optionally, you could reset shownCards here or show a message to the user
     }
   };
 
@@ -182,29 +226,29 @@ export default function CardQuizComponent() {
 
   const revealSection = (section: RevealSection | string) => {
     // Define point deductions for each section
-        const pointDeductions: Record<string, number> = {
-            'manaCost': 2,
-            'typeLine': 2,
-            'oracleText': 3,
-            'stats': 1,
-            'rarity': 1,
-            // 'image', 'price', 'artist' no deduction
-        };
+    const pointDeductions: Record<string, number> = {
+      'manaCost': 2,
+      'typeLine': 2,
+      'oracleText': 3,
+      'stats': 1,
+      'rarity': 1,
+      // 'image', 'price', 'artist' no deduction
+    };
 
-        // Apply penalty for revealing hints in quiz mode
-        if (quizState.mode === 'quiz' && pointDeductions[section]) {
-            const deduction = pointDeductions[section];
-            setQuizState(prev => ({
-            ...prev,
-            revealedSections: new Set([...prev.revealedSections, section]),
-            score: Math.max(0, prev.score - deduction) // Deduct points, minimum 0
-            }));
-        } else {
-            setQuizState(prev => ({
-            ...prev,
-            revealedSections: new Set([...prev.revealedSections, section])
-            }));
-        }
+    // Apply penalty for revealing hints in quiz mode
+    if (quizState.mode === 'quiz' && pointDeductions[section]) {
+      const deduction = pointDeductions[section];
+      setQuizState(prev => ({
+        ...prev,
+        revealedSections: new Set([...prev.revealedSections, section]),
+        score: Math.max(0, prev.score - deduction) // Deduct points, minimum 0
+      }));
+    } else {
+      setQuizState(prev => ({
+        ...prev,
+        revealedSections: new Set([...prev.revealedSections, section])
+      }));
+    }
   };
 
   const revealAllHints = () => {
@@ -242,7 +286,7 @@ export default function CardQuizComponent() {
     fetchNewCard();
   }, []);
 
-  const { card, revealedSections, showAnswer, loading, mode, difficulty, score, showScoreAnimation, lastCardScore } = quizState;
+  const { card, revealedSections, showAnswer, loading, mode, difficulty, score, showScoreAnimation, lastCardScore, shownCards } = quizState;
 
   return (
     <section className="py-20 bg-gray-900 min-h-screen relative">
@@ -317,49 +361,48 @@ export default function CardQuizComponent() {
             )}
           </div>
 
-          {/* Difficulty Selector - Only show in quiz mode */}
-          {mode === 'quiz' && (
-            <div className="relative">
-              <button
-                onClick={() => setDifficultyDropdownOpen(!difficultyDropdownOpen)}
-                className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 flex items-center gap-2 border border-gray-700"
-              >
-                <span className={DIFFICULTY_SETTINGS[difficulty].color}>
-                  {DIFFICULTY_SETTINGS[difficulty].label}
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${difficultyDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {difficultyDropdownOpen && (
-                <div className="absolute top-full mt-2 left-0 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
-                  <button
-                    onClick={() => switchDifficulty('staples')}
-                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-t-lg ${
-                      difficulty === 'staples' ? 'bg-gray-700 text-green-400' : 'text-gray-300'
-                    }`}
-                  >
-                    Staples
-                  </button>
-                  <button
-                    onClick={() => switchDifficulty('playable')}
-                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 ${
-                      difficulty === 'playable' ? 'bg-gray-700 text-yellow-400' : 'text-gray-300'
-                    }`}
-                  >
-                    Playable
-                  </button>
-                  <button
-                    onClick={() => switchDifficulty('unrestricted')}
-                    className={`w-full px-4 py-2 text-left hover:bg-gray-700 rounded-b-lg ${
-                      difficulty === 'unrestricted' ? 'bg-gray-700 text-red-400' : 'text-gray-300'
-                    }`}
-                  >
-                    Unrestricted
-                  </button>
-                </div>
-              )}
+          {/* Difficulty Selector - Show in both modes now */}
+          <div className="relative group">
+            <button
+              onClick={() => setDifficultyDropdownOpen(!difficultyDropdownOpen)}
+              className="px-4 py-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 flex items-center gap-2 border border-gray-700"
+            >
+              <span className={DIFFICULTY_SETTINGS[difficulty].color}>
+                {DIFFICULTY_SETTINGS[difficulty].label}
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${difficultyDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {/* Tooltip */}
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-20 shadow-lg">
+              {DIFFICULTY_SETTINGS[difficulty].tooltip}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -translate-y-1 border-4 border-transparent border-t-gray-900"></div>
             </div>
-          )}
+            
+            {difficultyDropdownOpen && (
+              <div className="absolute top-full mt-2 left-0 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10">
+                {Object.entries(DIFFICULTY_SETTINGS).map(([key, settings]) => (
+                  <div key={key} className="relative group/item">
+                    <button
+                      onClick={() => switchDifficulty(key as DifficultyLevel)}
+                      className={`w-full px-4 py-2 text-left hover:bg-gray-700 ${
+                        key === 'staples' ? 'rounded-t-lg' : key === 'unrestricted' ? 'rounded-b-lg' : ''
+                      } ${
+                        difficulty === key ? `bg-gray-700 ${settings.color}` : 'text-gray-300'
+                      }`}
+                    >
+                      {settings.label}
+                    </button>
+                    {/* Tooltip for dropdown items */}
+                    <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover/item:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-30 shadow-lg">
+                      {settings.tooltip}
+                      <div className="absolute top-1/2 right-full transform -translate-y-1/2 -translate-x-1 border-4 border-transparent border-r-gray-900"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={fetchNewCard}
@@ -373,6 +416,11 @@ export default function CardQuizComponent() {
             )}
             New Card
           </button>
+
+          {/* Cards shown counter */}
+          <div className="text-sm text-gray-500">
+            Cards: {shownCards.size}
+          </div>
         </div>
 
         {/* Quiz Content */}

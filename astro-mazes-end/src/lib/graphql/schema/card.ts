@@ -605,7 +605,7 @@ export const cardQueries = (t: any) => ({
       
       // Calculate start date for play count filtering
       const startDate = days === -1
-        ? '2025-08-01'
+        ? '2025-04-01'
         : new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       
       // Build play count filtering
