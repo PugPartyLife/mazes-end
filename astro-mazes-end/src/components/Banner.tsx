@@ -132,7 +132,7 @@ export default function Banner() {
             {/*<CtaButton buttonText="Get Started!" buttonHref="/tour" arrowRight={true} /> */}
             <CtaButton buttonText="Stats and Trends" buttonHref="/stats" arrowRight={true} />
             <CtaButton buttonText="Card Quiz" buttonHref="/card-quiz" arrowRight={true} />
-            <CtaButton buttonText="Learn EDH" buttonHref="https://mtgcommander.net/index.php/rules/" arrowRight={true} />
+            <CtaButton buttonText="Combo Quiz" buttonHref="/combo-quiz" arrowRight={true} />
           </div>
 
           {/* Stats */}
