@@ -1,0 +1,84 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation";
+import Footer from "../../components/Footer";
+import { getAllPosts } from "../../lib/strapi/strapi";
+import { renderContent } from "../../lib/strapi/render-content";
+import type { Post } from "../../types/strapi";
+
+export async function getStaticPaths() {
+  const { data: posts } = await getAllPosts();
+  
+  // Handle case where there are no posts
+  if (!posts || posts.length === 0) {
+    return [];
+  }
+  
+  return posts
+    .filter((post: Post) => post.slug)
+    .map((post: Post) => ({
+      params: { slug: post.slug },
+    }));
+}
+
+// Get the slug from params
+const { slug } = Astro.params;
+
+// Fetch the post data again based on the slug
+const { data: posts } = await getAllPosts();
+const post = posts.find((p: Post) => p.slug === slug);
+
+if (!post) {
+  return Astro.redirect('/404');
+}
+
+const { title, content, author, postedAt, exerpt } = post;
+const htmlContent = renderContent(content);
+---
+
+<Layout title={`${title} - The Maze's End`}>
+  <meta name="description" content={exerpt || `Read ${title} on The Maze's End`}>
+  
+  <div class="min-h-screen bg-gray-900">
+    <Navigation client:idle />
+    
+    <article class="py-20 bg-gray-800">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <header class="mb-8">
+          <h1 class="text-4xl font-bold text-white mb-4">{title}</h1>
+          
+          <div class="flex gap-4 text-sm text-gray-400">
+            {author && <span>By {author}</span>}
+            {postedAt && (
+              <time datetime={postedAt}>
+                {new Date(postedAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </time>
+            )}
+          </div>
+          
+          {post.featured && (
+            <span class="inline-block mt-4 text-sm bg-yellow-400 text-gray-900 px-3 py-1 rounded font-semibold">
+              Featured Post
+            </span>
+          )}
+        </header>
+        
+        <div class="max-w-none article-content">
+          <div set:html={htmlContent} class="text-gray-300 space-y-6" />
+        </div>
+        
+        <nav class="mt-12 pt-8 border-t border-gray-700">
+          <a href="/posts" class="text-yellow-400 hover:underline">
+            ← Back to all posts
+          </a>
+        </nav>
+      </div>
+    </article>
+  </div>
+  
+  <Footer />
+</Layout>

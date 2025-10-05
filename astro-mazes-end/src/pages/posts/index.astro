@@ -1,0 +1,70 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation";
+import Footer from "../../components/Footer";
+import { getAllPosts } from "../../lib/strapi/strapi";
+import type { Post } from "../../types/strapi";
+
+// Fetch posts from Strapi
+const { data: posts } = await getAllPosts();
+---
+
+<Layout title="Posts - The Maze's End">
+  <div class="min-h-screen bg-gray-900">
+    <Navigation client:idle />
+    
+    <section class="py-20 bg-gray-800">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 class="text-4xl font-bold text-white mb-12 text-center">
+          Latest <span class="text-yellow-400 font-serif">Posts</span>
+        </h1>
+        
+        <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post: Post) => (
+            <article class="bg-gray-800 rounded-lg p-6 hover:bg-gray-700 transition-colors">
+              <h2 class="text-2xl font-bold text-white mb-3">
+                <a href={`/posts/${post.slug}`} class="hover:text-yellow-400 transition-colors">
+                  {post.title}
+                </a>
+              </h2>
+              
+              {post.exerpt && (
+                <p class="text-gray-300 mb-4">{post.exerpt}</p>
+              )}
+              
+              <div class="flex justify-between items-center text-sm text-gray-400">
+                {post.author && (
+                  <span>By {post.author}</span>
+                )}
+                {post.postedAt && (
+                  <time datetime={post.postedAt}>
+                    {new Date(post.postedAt).toLocaleDateString()}
+                  </time>
+                )}
+              </div>
+              
+              {post.featured && (
+                <span class="inline-block mt-2 text-xs bg-yellow-400 text-gray-900 px-2 py-1 rounded font-semibold">
+                  Featured
+                </span>
+              )}
+              
+              <a 
+                href={`/posts/${post.slug}`} 
+                class="inline-block mt-4 text-yellow-400 hover:underline"
+              >
+                Read more →
+              </a>
+            </article>
+          ))}
+        </div>
+        
+        {posts.length === 0 && (
+          <p class="text-center text-gray-400 text-lg">No posts yet. Check back soon!</p>
+        )}
+      </div>
+    </section>
+  </div>
+  
+  <Footer />
+</Layout>

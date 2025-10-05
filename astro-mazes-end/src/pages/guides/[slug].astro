@@ -1,0 +1,101 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Navigation from "../../components/Navigation";
+import Footer from "../../components/Footer";
+import { getAllGuides, getGuideBySlug } from "../../lib/strapi/strapi";
+import { renderGuideSections } from "../../lib/strapi/guide-renderer";
+import type { Guide } from "../../types/guide";
+
+export async function getStaticPaths() {
+  const { data: guides } = await getAllGuides();
+  
+  // Handle case where there are no guides
+  if (!guides || guides.length === 0) {
+    return [];
+  }
+  
+  return guides
+    .filter((guide: Guide) => guide.slug)
+    .map((guide: Guide) => ({
+      params: { slug: guide.slug },
+    }));
+}
+
+// Get the slug from params
+const { slug } = Astro.params;
+
+// Fetch the specific guide with all nested data
+const guide = await getGuideBySlug(slug as string);
+
+if (!guide) {
+  return Astro.redirect('/404');
+}
+
+const { title, description, sections, coverImage, category, readingTime, author } = guide;
+const htmlContent = renderGuideSections(sections);
+
+// Construct cover image URL
+const coverUrl = coverImage?.url 
+  ? (coverImage.url.startsWith('http') ? coverImage.url : `http://localhost:1337${coverImage.url}`)
+  : null;
+---
+
+<Layout title={`${title} - Learn cEDH`}>
+  <meta name="description" content={description || `Read ${title} on Learn cEDH`}>
+  
+  <div class="min-h-screen bg-gray-900">
+    <Navigation client:idle />
+    
+    <article>
+      <!-- Hero section with cover image -->
+      <div 
+        class="relative py-32 bg-gray-800"
+        style={coverUrl ? `background-image: linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.7)), url('${coverUrl}'); background-size: cover; background-position: center;` : ''}
+      >
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="text-center">
+            <div class="flex justify-center items-center gap-3 text-sm text-gray-200 mb-4">
+              {category && (
+                <span class="bg-gray-900/50 backdrop-blur px-3 py-1 rounded">
+                  {category}
+                </span>
+              )}
+              {readingTime && (
+                <span class="bg-gray-900/50 backdrop-blur px-3 py-1 rounded">
+                  {readingTime} min read
+                </span>
+              )}
+            </div>
+            
+            <h1 class="text-5xl font-bold text-white mb-4 drop-shadow-lg">{title}</h1>
+            
+            {description && (
+              <p class="text-xl text-gray-200 mb-6 max-w-2xl mx-auto">{description}</p>
+            )}
+            
+            {author?.data && (
+              <p class="text-sm text-gray-200">
+                By {author.data.attributes.firstname} {author.data.attributes.lastname}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      <!-- Content section -->
+      <div class="py-16 bg-gray-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px:6 lg:px-8">
+          <div set:html={htmlContent} class="space-y-8" />
+          
+          <nav class="mt-16 pt-8 border-t border-gray-700">
+            <a href="/guides" class="text-yellow-400 hover:underline">
+              ← Back to all guides
+            </a>
+          </nav>
+        </div>
+      </div>
+    </article>
+  </div>
+  
+  <Footer />
+</Layout>

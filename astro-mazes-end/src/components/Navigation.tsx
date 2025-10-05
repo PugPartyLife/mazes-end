@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
-import Logo from './Logo'
+import Logo from './Logo';
 
 interface NavItem {
   name: string;
   href: string;
-  external?: boolean;  // For external links
-  disabled?: boolean;  // For disabled nav items
+  external?: boolean;
+  disabled?: boolean;
 }
 
 export default function Navigation(): React.JSX.Element {
@@ -22,65 +22,80 @@ export default function Navigation(): React.JSX.Element {
   }, []);
 
   const navItems: NavItem[] = [
+    { name: 'The Format', href: '/the-format' },
     { name: 'Commanders', href: '/commanders' },
     { name: 'Decks', href: '/decks' },
-    { name: 'Cards and Combos', href: '/cards' },
-    { name: 'Tournaments', href: '/tournaments' },
+    { name: 'Meta Stats', href: '/stats' },
+    { name: 'Coaching', href: '/coaching' },
+    { name: 'Feedback', href: '/feedback' },
   ];
 
-    const navItemsMobile: NavItem[] = [
+  const navItemsMobile: NavItem[] = [
     { name: 'Home', href: '/' },
+    { name: 'The Format', href: '/the-format' },
     { name: 'Commanders', href: '/commanders' },
     { name: 'Decks', href: '/decks' },
-    { name: 'Cards and Combos', href: '/cards' },
-    { name: 'Tournaments', href: '/tournaments' },
+    { name: 'Meta Stats', href: '/stats' },
+    { name: 'Coaching', href: '/coaching' },
+    { name: 'Feedback', href: '/feedback' },
   ];
 
   return (
-    <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'bg-gray-900/90 backdrop-blur-md shadow-lg border-b border-white/10' : 'bg-transparent border-b border-transparent'
-    }`}>
+    <nav className="fixed top-0 w-full z-50 transition-all duration-300 bg-black/95 backdrop-blur-md shadow-lg border-b border-yellow-400/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Keep items centered; add brand at left for identity */}
-        <div className="flex justify-center items-center h-16 relative">
+        <div className="flex justify-center items-center h-24 relative">
           {/* Brand */}
           <a
             href="/"
-            className={`hidden lg:flex items-center gap-2 absolute left-0 top-1/2 -translate-y-1/2 font-serif font-bold tracking-wide text-me-yellow ${scrolled ? 'opacity-100 drop-shadow-[0_0_6px_rgba(218,162,28,0.35)]' : 'opacity-90'}`}
-            aria-label="The Maze's End Home"
+            className="flex items-center gap-3 absolute left-0 top-1/2 -translate-y-1/2 font-cinzel font-bold tracking-wide transition-all duration-300 text-yellow-400 drop-shadow-[0_0_10px_rgba(255,215,0,0.5)]"
+            aria-label="Learn cEDH Home"
           >
-            <Logo size={22} />
-            The Maze's End
+            <Logo size={150} />
+            {/* <span className="text-xl">Learn cEDH</span> */}
           </a>
-          {/* Desktop Navigation - removed ml-10 to center properly */}
+
+          {/* Desktop Navigation */}
           <div className="hidden lg:block">
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-1">
               {navItems.map((item: NavItem) => (
                 <a
                   key={item.name}
                   href={item.disabled ? '#' : item.href}
                   target={item.external ? '_blank' : undefined}
                   rel={item.external ? 'noopener noreferrer' : undefined}
-                  className={`px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                  className={`relative px-4 py-2 text-sm font-medium transition-all duration-200 group ${
                     item.disabled 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : scrolled 
-                        ? 'text-gray-200 hover:text-gray-300' 
-                        : 'text-gray-100 hover:text-gray-300'
+                      ? 'text-gray-500 cursor-not-allowed' 
+                      : 'text-gray-300 hover:text-yellow-400'
                   }`}
                   onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 >
-                  {item.name}
+                  <span className="relative z-10">{item.name}</span>
+                  {!item.disabled && (
+                    <div className="absolute inset-0 bg-yellow-400/0 group-hover:bg-yellow-400/10 rounded transition-all duration-200" />
+                  )}
+                  {!item.disabled && (
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-yellow-400 group-hover:w-3/4 transition-all duration-200" />
+                  )}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Mobile menu button - positioned absolutely to stay on the right */}
+          {/* Donate Button */}
+          <a
+            href="/donate"
+            className="hidden lg:inline-flex absolute right-0 top-1/2 -translate-y-1/2 px-6 py-2 bg-transparent border-2 border-yellow-400 text-white font-semibold rounded transition-all duration-200 hover:border-yellow-300 hover:text-yellow-300 hover:shadow-[0_0_15px_rgba(255,215,0,0.3)]"
+          >
+            Donate
+          </a>
+
+          {/* Mobile menu button */}
           <div className="lg:hidden absolute right-4">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className={`p-2 rounded-md ${scrolled ? 'text-gray-100' : 'text-white'}`}
+              className="p-2 rounded-md transition-colors duration-200 text-yellow-400 hover:bg-yellow-400/10"
+              aria-label="Toggle menu"
             >
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -91,17 +106,17 @@ export default function Navigation(): React.JSX.Element {
       {/* Mobile Navigation */}
       {isOpen && (
         <div className="lg:hidden">
-          <div className="px-2 pt-2 pb-3 space-y-1 bg-gray-800 shadow-lg">
+          <div className="px-2 pt-2 pb-3 space-y-1 bg-black/95 backdrop-blur-md shadow-lg border-b border-yellow-400/20">
             {navItemsMobile.map((item: NavItem) => (
               <a
                 key={item.name}
                 href={item.disabled ? '#' : item.href}
                 target={item.external ? '_blank' : undefined}
                 rel={item.external ? 'noopener noreferrer' : undefined}
-                className={`block px-3 py-2 text-base font-medium rounded-md transition-colors duration-200 ${
+                className={`block px-3 py-2 text-base font-medium rounded-md transition-all duration-200 ${
                   item.disabled
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-gray-100 hover:text-gray-300 hover:bg-gray-700'
+                    ? 'text-gray-500 cursor-not-allowed'
+                    : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-400/10'
                 }`}
                 onClick={(e) => {
                   if (item.disabled) {

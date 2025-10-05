@@ -6,63 +6,157 @@ import Footer from "../components/Footer";
 import FeatureSection from "../components/FeatureSection";
 
 ---
-<meta name="description" content="c(EDH) Analysis">
-<Layout title="The Maze's End - cEDH Hub">
-  <div class="min-h-screen bg-gray-900">
+<meta name="description" content="Master competitive Commander with Learn cEDH - Your comprehensive guide to the fastest growing MTG format">
+<Layout title="Learn cEDH - Master Competitive Commander">
+  <div class="min-h-screen text-gray-100">
     <Navigation client:idle />
     <Banner client:visible />
 
-    {/* <FeatureSection client:idle /> */}
-
-    <section class="py-20 bg-navy-800">
-      <div class="text-lg text-gray-300 max-w-4xl mx-auto text-left space-y-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 class="text-4xl font-bold text-white mb-8">
-            Where to <span class="text-me-yellow font-serif">START</span>?
+    <!-- Feature Cards Section -->
+    <section id="path-to-victory" class="py-24 relative">
+      <div class="section-divider absolute top-0"></div>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16 animate-fadeIn">
+          <h2 class="font-cinzel text-4xl md:text-5xl gradient-text mb-4">
+            Your Path to Victory
           </h2>
+          <p class="text-xl text-gray-400">Choose your learning journey</p>
         </div>
-        <div>
-          <span class="font-bold text-white">What is (c)EDH?</span>
-          <br />
-          Elder Dragon Highlander is an "eternal" format of Magic the Gathering,
-          meaning, you can play any card unless it is explicitly on the banlist.
-          The rules can be found <a href="https://mtgcommander.net/index.php/rules/" target="_blank" class="text-me-yellow underline">HERE</a>.
+        
+        <div class="grid md:grid-cols-3 gap-8">
+          <!-- Learn Basics Card -->
+          <div class="card-hover bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center backdrop-blur-sm">
+            <div class="w-20 h-20 mx-auto mb-6 bg-yellow-400/10 rounded-full flex items-center justify-center">
+              <span class="text-3xl">📚</span>
+            </div>
+            <h3 class="text-2xl font-bold gradient-text font-cinzel mb-4">Guides</h3>
+            <p class="text-gray-400 mb-6">Fundamental concepts, key cards, and essential strategies</p>
+            <a href="/guides" class="btn-secondary text-sm">
+              Start Learning
+            </a>
+          </div>
+          
+          <!-- Study Decks Card -->
+          <div class="card-hover bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center backdrop-blur-sm">
+            <div class="w-20 h-20 mx-auto mb-6 bg-yellow-400/10 rounded-full flex items-center justify-center">
+              <span class="text-3xl">🎴</span>
+            </div>
+            <h3 class="text-2xl font-bold gradient-text font-cinzel mb-4">Study Decks</h3>
+            <p class="text-gray-400 mb-6">Explore tournament-winning decklists and proven strategies</p>
+            <a href="/decks" class="btn-secondary text-sm">
+              Browse Decks
+            </a>
+          </div>
+          
+          <!-- Practice Skills Card -->
+          <div class="card-hover bg-gray-900/50 border border-gray-800 rounded-lg p-8 text-center backdrop-blur-sm">
+            <div class="w-20 h-20 mx-auto mb-6 bg-yellow-400/10 rounded-full flex items-center justify-center">
+              <span class="text-3xl">🎯</span>
+            </div>
+            <h3 class="text-2xl font-bold gradient-text font-cinzel mb-4">Card Quiz</h3>
+            <p class="text-gray-400 mb-6">Test your knowledge with the interactive card and combo quizzes!</p>
+            <a href="/card-quiz" class="btn-secondary text-sm">
+              Get Quizzin
+            </a>
+          </div>
         </div>
+      </div>
+    </section>
 
-        <div>
-          <span class="font-bold text-white"
-            >With 25,000+ legal cards, where do you even start?</span
-          >
-          <br />
-          That's where we come in. Staple cards, combos, routing, decks from the
-          pros, and access to infographics to analyze your own cards, commanders,
-          and combos.
+    <!-- Where to Start Section -->
+    <section class="py-24 relative">
+      <div class="section-divider absolute top-0"></div>
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12 animate-fadeIn">
+          <h2 class="font-cinzel text-4xl md:text-5xl gradient-text mb-4">
+            Where to Start?
+          </h2>
+          <div class="w-24 h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent mx-auto"></div>
         </div>
-        <div>
-          <span class="font-bold text-white"
-            >Great, but I'm looking to learn myself.</span
-          >
-          <br />
-          Cool! Check these sites out to get competitive:&nbsp;<a
-            class="hover:bg-gray-500 text-white"
-            href="https://topdeck.gg"
-            target="_blank">TopDeck.gg</a
-          >, <a
-            class="hover:bg-gray-500 text-white"
-            href="https://edhtop16.com"
-            target="_blank">EDHtop16</a
-          >, <a
-            class="hover:bg-gray-500 text-white"
-            href="https://playnicemtg.com"
-            target="_blank">Play Nice</a
-          >
-          <p class="text-sm">
-            Data provided by:&nbsp;<a
-              class="hover:bg-gray-500 text-white"
-              href="https://topdeck.gg"
-              target="_blank">TopDeck.gg</a
-            >
-          </p>
+        
+        <div class="space-y-8 text-lg">
+          <div class="bg-black/50 border border-gray-800 rounded-lg p-8 card-hover backdrop-blur-sm">
+            <h3 class="font-bold text-2xl gradient-text mb-4 font-cinzel">What is cEDH?</h3>
+            <p class="text-gray-300 leading-relaxed">
+              Competitive Elder Dragon Highlander is the pinnacle of Magic's most popular format. 
+              It's an "eternal" format where you can play any card not on the 
+              <a href="https://mtgcommander.net/index.php/rules/" target="_blank" class="text-yellow-400 hover:text-yellow-300 underline ml-1">official banlist</a>.
+              Unlike casual EDH, cEDH focuses on optimal play, efficient combos, and winning as quickly as possible.
+            </p>
+          </div>
+
+          <div class="bg-black/50 border border-gray-800 rounded-lg p-8 card-hover backdrop-blur-sm">
+            <h3 class="font-bold text-2xl gradient-text mb-4 font-cinzel">25,000+ Cards? No Problem!</h3>
+            <p class="text-gray-300 leading-relaxed">
+              The vast card pool can be overwhelming, but we've got you covered. Learn about:
+            </p>
+            <ul class="mt-4 space-y-2 text-gray-300">
+              <li class="flex items-start">
+                <span class="text-yellow-400 mr-2">→</span>
+                <span>Staple cards that appear in most competitive decks</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-yellow-400 mr-2">→</span>
+                <span>Win conditions and combo lines</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-yellow-400 mr-2">→</span>
+                <span>Tournament-proven strategies and decklists</span>
+              </li>
+              <li class="flex items-start">
+                <span class="text-yellow-400 mr-2">→</span>
+                <span>Advanced analytics for your own brewing</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="bg-black/50 border border-gray-800 rounded-lg p-8 card-hover backdrop-blur-sm">
+            <h3 class="font-bold text-2xl gradient-text mb-4 font-cinzel">Ready for More?</h3>
+            <p class="text-gray-300 mb-4 leading-relaxed">
+              Expand your knowledge with these community resources:
+            </p>
+            <div class="flex flex-wrap gap-4">
+              <a href="https://topdeck.gg" target="_blank" 
+                class="px-4 py-2 bg-gray-800 text-yellow-400 rounded hover:bg-gray-700 transition-all duration-200 group">
+                TopDeck.gg
+              </a>
+              <a href="https://edhtop16.com" target="_blank"
+                class="px-4 py-2 bg-gray-800 text-yellow-400 rounded hover:bg-gray-700 transition-all duration-200 group">
+                EDHTop16
+              </a>
+              <a href="https://playnicemtg.com" target="_blank"
+                class="px-4 py-2 bg-gray-800 text-yellow-400 rounded hover:bg-gray-700 transition-all duration-200 group">
+                Play Nice MTG
+              </a>
+            </div>
+            <p class="text-sm text-gray-500 mt-6">
+              Data powered by 
+              <a href="https://topdeck.gg" target="_blank" class="text-yellow-400 hover:text-yellow-300">
+                TopDeck.gg
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Call to Action Section -->
+    <section class="py-24 relative">
+      <div class="section-divider absolute top-0"></div>
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center animate-fadeIn">
+        <h2 class="font-cinzel text-4xl md:text-5xl gradient-text mb-6 gold-glow">
+          Ready to Dominate?
+        </h2>
+        <p class="text-xl text-gray-300 mb-8">
+          Join thousands of players mastering competitive Commander
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <a href="/tour" class="btn-primary">
+            Take the Tour
+          </a>
+          <a href="/stats" class="btn-secondary">
+            View Stats & Trends
+          </a>
         </div>
       </div>
     </section>
